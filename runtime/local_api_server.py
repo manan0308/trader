@@ -82,7 +82,13 @@ class LocalAPIHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(content_length))
         self.send_header("Cache-Control", "no-store")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        # Only advertise a wildcard CORS policy when the server is bound to a
+        # loopback interface. If the operator exposes the server on a real
+        # network (``--host 0.0.0.0`` etc.) we intentionally fall back to the
+        # browser same-origin default so that cached portfolio state, overlays
+        # and execution plans cannot be read cross-origin.
+        if getattr(self.server, "cors_allow_any", False):
+            self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
 
     def _send_json(self, payload: Dict[str, Any], status_code: int = 200) -> None:
@@ -223,6 +229,7 @@ def main() -> None:
     server.dashboard_root = dashboard_root  # type: ignore[attr-defined]
     server.dashboard_data_root = dashboard_data_root  # type: ignore[attr-defined]
     server.cache_dir = cache_dir  # type: ignore[attr-defined]
+    server.cors_allow_any = args.host in {"127.0.0.1", "localhost", "::1"}  # type: ignore[attr-defined]
 
     print(f"Serving dashboard from: {dashboard_root}")
     print(f"Serving dashboard data from: {dashboard_data_root}")
