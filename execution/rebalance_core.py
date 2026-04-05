@@ -83,6 +83,16 @@ def _coerce_prices(prices: Mapping[str, float]) -> pd.Series:
     if series.isna().any():
         missing = series[series.isna()].index.tolist()
         raise ValueError(f"Missing prices for assets: {missing}")
+    # Reject non-positive prices up-front. A zero or negative fallback from a
+    # stale quote cache would otherwise propagate through to the quantity
+    # calculation (``target_value / price``) and produce ``inf`` shares, which
+    # the downstream planner will happily round to a huge integer order.
+    nonpositive = series[series <= 0.0]
+    if not nonpositive.empty:
+        raise ValueError(
+            "Non-positive prices are not tradable: "
+            f"{nonpositive.to_dict()}"
+        )
     return series
 
 

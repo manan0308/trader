@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -112,6 +113,27 @@ def test_build_groww_payloads_from_plan() -> None:
     assert payloads
     assert all("trading_symbol" in payload for payload in payloads)
     assert all(payload["transaction_type"] in {"BUY", "SELL"} for payload in payloads)
+
+
+def test_plan_rebalance_rejects_non_positive_price() -> None:
+    target = {"NIFTY": 0.5, "CASH": 0.5}
+    prices = {
+        "NIFTY": 0.0,  # stale / missing quote
+        "MIDCAP": 150.0,
+        "SMALLCAP": 80.0,
+        "GOLD": 70.0,
+        "SILVER": 90.0,
+        "US": 200.0,
+        "CASH": 1_000.0,
+    }
+    with pytest.raises(ValueError, match="Non-positive prices"):
+        plan_rebalance(
+            target_weights=target,
+            holdings={},
+            prices=prices,
+            available_cash=10_000.0,
+            config=ExecutionConfig(reserve_cash_value=0.0, reserve_cash_weight=0.0, min_order_value=1_000.0),
+        )
 
 
 def test_format_plan_has_order_summary() -> None:
