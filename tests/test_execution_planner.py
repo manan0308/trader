@@ -65,10 +65,12 @@ def test_plan_rebalance_sells_before_buys() -> None:
         as_of=pd.Timestamp("2026-04-03"),
     )
     assert plan.orders
-    first_sell_index = next(i for i, order in enumerate(plan.orders) if order.side == "SELL")
     last_sell_index = max(i for i, order in enumerate(plan.orders) if order.side == "SELL")
     first_buy_index = next(i for i, order in enumerate(plan.orders) if order.side == "BUY")
-    assert last_sell_index < first_buy_index or first_sell_index < first_buy_index
+    # Every sell must finish before the first buy so the planner can recycle
+    # freed cash into the BUY leg. The previous assertion allowed a vacuous
+    # ``or`` clause that was satisfied as soon as any sell appeared at all.
+    assert last_sell_index < first_buy_index
 
 
 def test_extract_asset_quantities_from_groww_payloads() -> None:

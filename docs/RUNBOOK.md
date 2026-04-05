@@ -1,11 +1,20 @@
 # Trader Runbook
 
+> **Repo path.** All commands below assume you have `cd`'d into the repo
+> root (the directory that contains this `docs/` folder). Set
+> `TRADER_ROOT=$(pwd)` once and reuse it from new shells:
+>
+> ```bash
+> export TRADER_ROOT=/absolute/path/to/trader   # adjust for your machine
+> cd "$TRADER_ROOT"
+> ```
+
 ## Main daily refresh
 
 Run the full signal -> learning -> execution-plan -> dashboard sync cycle:
 
 ```bash
-cd /Users/mananagarwal/Desktop/2nd\ brain/plant\ to\ image/trader
+cd "$TRADER_ROOT"
 ./.venv/bin/python -m runtime.daily_cycle --portfolio-file config/portfolio_state.example.json
 ```
 
@@ -50,7 +59,7 @@ This writes:
 Build the React app:
 
 ```bash
-cd /Users/mananagarwal/Desktop/2nd\ brain/plant\ to\ image/trader/dashboard
+cd "$TRADER_ROOT/dashboard"
 npm install
 npm run build
 ```
@@ -58,7 +67,7 @@ npm run build
 Serve the built dashboard and JSON APIs:
 
 ```bash
-cd /Users/mananagarwal/Desktop/2nd\ brain/plant\ to\ image/trader
+cd "$TRADER_ROOT"
 ./.venv/bin/python -m runtime.local_api_server --host 127.0.0.1 --port 8050
 ```
 
