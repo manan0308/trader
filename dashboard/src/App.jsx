@@ -402,7 +402,7 @@ export default function App() {
                       <Metric label="Market" value={marketClock.session || "—"} hint={marketClock.holiday_name || ""} />
                       <Metric label="Paper equity" value={`₹${fmtInr(paperSummary.total_equity || paperTrading.total_equity)}`} />
                       <Metric label="Net PnL" value={fmtSignedPct(paperSummary.return_since_start)} hint={`₹${fmtInr(paperSummary.net_pnl)}`} />
-                      <Metric label="Pending orders" value={String(pendingCount(paperSummary.pending_orders, executionOrders.length || 0))} />
+                      <Metric label="Queued paper fills" value={String(pendingCount(paperSummary.pending_orders, executionOrders.length || 0))} />
                     </div>
                     {dashboard?.daily_cycle?.market_closed_skip ? (
                       <StatusNote tone="neutral">
@@ -494,7 +494,7 @@ export default function App() {
                   <LineChart rows={paperCurveRows} keys={["PAPER_EQUITY"]} colors={{ PAPER_EQUITY: "#0f766e" }} valueFormatter={(value) => `₹${fmtInr(value)}`} />
                 </Card>
 
-                <Card title="Paper ledger" subtitle="Daily marks, holidays, and pending orders from April 1 onward">
+                <Card title="Paper ledger" subtitle="Daily marks, holidays, and queued paper fills from April 1 onward">
                   <Table
                     rows={paperCurve.slice(-15).reverse()}
                     columns={[
@@ -503,7 +503,7 @@ export default function App() {
                       { key: "holiday_name", label: "Holiday" },
                       { key: "equity", label: "Equity", render: (row) => `₹${fmtInr(row.equity)}` },
                       { key: "cash", label: "Cash", render: (row) => `₹${fmtInr(row.cash)}` },
-                      { key: "pending_orders", label: "Pending", render: (row) => (Array.isArray(row.pending_orders) ? row.pending_orders.length : row.pending_orders ?? "—") },
+                      { key: "pending_orders", label: "Queued fills", render: (row) => (Array.isArray(row.pending_orders) ? row.pending_orders.length : row.pending_orders ?? "—") },
                     ]}
                     empty="No paper curve yet."
                   />
