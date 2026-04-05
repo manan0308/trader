@@ -1,0 +1,104 @@
+{
+  "india_research": {
+    "rows": 3437,
+    "columns": [
+      "NIFTY",
+      "MIDCAP",
+      "SMALLCAP",
+      "GOLD",
+      "SILVER",
+      "US",
+      "CASH"
+    ],
+    "start": "2012-04-02",
+    "end": "2026-04-02",
+    "path": "/Users/mananagarwal/Desktop/2nd brain/plant to image/trader/data/market/processed/india_research.pkl"
+  },
+  "india_benchmark": {
+    "rows": 3437,
+    "columns": [
+      "NIFTY",
+      "MIDCAP",
+      "SMALLCAP",
+      "GOLD",
+      "SILVER",
+      "US",
+      "CASH"
+    ],
+    "start": "2012-04-02",
+    "end": "2026-04-02",
+    "path": "/Users/mananagarwal/Desktop/2nd brain/plant to image/trader/data/market/processed/india_benchmark.pkl"
+  },
+  "india_tradable": {
+    "rows": 505,
+    "columns": [
+      "NIFTY",
+      "MIDCAP",
+      "SMALLCAP",
+      "GOLD",
+      "SILVER",
+      "US",
+      "CASH"
+    ],
+    "start": "2024-03-18",
+    "end": "2026-04-02",
+    "path": "/Users/mananagarwal/Desktop/2nd brain/plant to image/trader/data/market/processed/india_tradable.pkl"
+  },
+  "india_macro": {
+    "rows": 3657,
+    "columns": [
+      "INDIAVIX",
+      "USDINR",
+      "CRUDE",
+      "US10Y"
+    ],
+    "start": "2012-04-02",
+    "end": "2026-04-04",
+    "path": "/Users/mananagarwal/Desktop/2nd brain/plant to image/trader/data/market/processed/india_macro.pkl"
+  },
+  "us_analog_shy": {
+    "rows": 5014,
+    "columns": [
+      "NIFTY",
+      "MIDCAP",
+      "SMALLCAP",
+      "GOLD",
+      "SILVER",
+      "US",
+      "CASH"
+    ],
+    "start": "2006-04-28",
+    "end": "2026-04-02",
+    "path": "/Users/mananagarwal/Desktop/2nd brain/plant to image/trader/data/market/processed/us_analog_shy.pkl"
+  },
+  "us_analog_ief": {
+    "rows": 5014,
+    "columns": [
+      "NIFTY",
+      "MIDCAP",
+      "SMALLCAP",
+      "GOLD",
+      "SILVER",
+      "US",
+      "CASH"
+    ],
+    "start": "2006-04-28",
+    "end": "2026-04-02",
+    "path": "/Users/mananagarwal/Desktop/2nd brain/plant to image/trader/data/market/processed/us_analog_ief.pkl"
+  },
+  "us_analog_bil": {
+    "rows": 4742,
+    "columns": [
+      "NIFTY",
+      "MIDCAP",
+      "SMALLCAP",
+      "GOLD",
+      "SILVER",
+      "US",
+      "CASH"
+    ],
+    "start": "2007-05-30",
+    "end": "2026-04-02",
+    "path": "/Users/mananagarwal/Desktop/2nd brain/plant to image/trader/data/market/processed/us_analog_bil.pkl"
+  }
+}

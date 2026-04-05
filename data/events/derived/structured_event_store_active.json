@@ -1,0 +1,123 @@
+{
+  "as_of": "2026-04-02",
+  "generated_at": "2026-04-04T12:33:30.580953+00:00",
+  "events": [
+    {
+      "event_id": "91bad0289b8d2656",
+      "source_id": "rbi_notifications",
+      "source": "RBI Notifications",
+      "source_type": "rss",
+      "source_url": "https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=13363&Mode=0",
+      "title": "Risk Management and Inter-Bank Dealings (<span style=\"color: red\">Revised</span>)",
+      "summary": "RBI/2026-27/04 A.P. (DIR Series) Circular No. 03 April 01, 2026 To, All Authorised Dealers Madam/Sir, Risk Management and Inter-Bank Dealings Attention of Authorised Dealers is invited to the A.P. (DIR Series) Circular N",
+      "published_at": "2026-04-01T19:30:00+00:00",
+      "category": "policy",
+      "country": "IN",
+      "official": true,
+      "severity": 0.39999999999999997,
+      "horizon_days": 3,
+      "expires_at": "2026-04-04T19:30:00+00:00",
+      "assets": [
+        "NIFTY",
+        "MIDCAP",
+        "SMALLCAP",
+        "US"
+      ],
+      "tags": []
+    },
+    {
+      "event_id": "4aa587720fef3ee0",
+      "source_id": "rbi_notifications",
+      "source": "RBI Notifications",
+      "source_type": "rss",
+      "source_url": "https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=13358&Mode=0",
+      "title": "Reporting under Foreign Exchange Management Act, 1999 \u2013 Returns pertaining to Foreign Exchange Management (Guarantees) Regulations, 2026",
+      "summary": "RBI/2026-27/02 A.P. (DIR Series) Circular No. 01 April 01, 2026 All Authorised Persons Madam / Sir, Reporting under Foreign Exchange Management Act, 1999 \u2013 Returns pertaining to Foreign Exchange Management (Guarantees) R",
+      "published_at": "2026-04-01T17:10:00+00:00",
+      "category": "policy",
+      "country": "IN",
+      "official": true,
+      "severity": 0.39999999999999997,
+      "horizon_days": 5,
+      "expires_at": "2026-04-06T17:10:00+00:00",
+      "assets": [
+        "NIFTY",
+        "MIDCAP",
+        "SMALLCAP",
+        "US",
+        "GOLD",
+        "SILVER"
+      ],
+      "tags": []
+    }
+  ],
+  "summary": {
+    "event_count": 2,
+    "category_counts": {
+      "policy": 2
+    },
+    "source_counts": {
+      "RBI Notifications": 2
+    },
+    "asset_watch": {
+      "NIFTY": [
+        "Risk Management and Inter-Bank Dealings (<span style=\"color: red\">Revised</span>)",
+        "Reporting under Foreign Exchange Management Act, 1999 \u2013 Returns pertaining to Foreign Exchange Management (Guarantees) Regulations, 2026"
+      ],
+      "MIDCAP": [
+        "Risk Management and Inter-Bank Dealings (<span style=\"color: red\">Revised</span>)",
+        "Reporting under Foreign Exchange Management Act, 1999 \u2013 Returns pertaining to Foreign Exchange Management (Guarantees) Regulations, 2026"
+      ],
+      "SMALLCAP": [
+        "Risk Management and Inter-Bank Dealings (<span style=\"color: red\">Revised</span>)",
+        "Reporting under Foreign Exchange Management Act, 1999 \u2013 Returns pertaining to Foreign Exchange Management (Guarantees) Regulations, 2026"
+      ],
+      "US": [
+        "Risk Management and Inter-Bank Dealings (<span style=\"color: red\">Revised</span>)",
+        "Reporting under Foreign Exchange Management Act, 1999 \u2013 Returns pertaining to Foreign Exchange Management (Guarantees) Regulations, 2026"
+      ],
+      "GOLD": [
+        "Reporting under Foreign Exchange Management Act, 1999 \u2013 Returns pertaining to Foreign Exchange Management (Guarantees) Regulations, 2026"
+      ],
+      "SILVER": [
+        "Reporting under Foreign Exchange Management Act, 1999 \u2013 Returns pertaining to Foreign Exchange Management (Guarantees) Regulations, 2026"
+      ]
+    },
+    "top_events": [
+      {
+        "event_id": "91bad0289b8d2656",
+        "date": "2026-04-01",
+        "source": "RBI Notifications",
+        "category": "policy",
+        "severity": 0.39999999999999997,
+        "assets": [
+          "NIFTY",
+          "MIDCAP",
+          "SMALLCAP",
+          "US"
+        ],
+        "title": "Risk Management and Inter-Bank Dealings (<span style=\"color: red\">Revised</span>)",
+        "summary": "RBI/2026-27/04 A.P. (DIR Series) Circular No. 03 April 01, 2026 To, All Authorised Dealers Madam/Sir, Risk Management and Inter-Bank Dealings Attention of Authorised Dealers is invited to the A.P. (DIR Series) Circular N",
+        "source_url": "https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=13363&Mode=0"
+      },
+      {
+        "event_id": "4aa587720fef3ee0",
+        "date": "2026-04-01",
+        "source": "RBI Notifications",
+        "category": "policy",
+        "severity": 0.39999999999999997,
+        "assets": [
+          "NIFTY",
+          "MIDCAP",
+          "SMALLCAP",
+          "US",
+          "GOLD",
+          "SILVER"
+        ],
+        "title": "Reporting under Foreign Exchange Management Act, 1999 \u2013 Returns pertaining to Foreign Exchange Management (Guarantees) Regulations, 2026",
+        "summary": "RBI/2026-27/02 A.P. (DIR Series) Circular No. 01 April 01, 2026 All Authorised Persons Madam / Sir, Reporting under Foreign Exchange Management Act, 1999 \u2013 Returns pertaining to Foreign Exchange Management (Guarantees) R",
+        "source_url": "https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=13358&Mode=0"
+      }
+    ]
+  }
+}

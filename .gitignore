@@ -9,8 +9,3 @@ dashboard/public/data/
 *.pyc
 config/local.env
 config/runtime.env
-data/market/raw/
-data/market/processed/
-data/market/manifest.json
-data/events/raw/
-data/events/derived/
