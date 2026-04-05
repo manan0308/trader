@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any, Iterable, List
 
@@ -46,9 +48,35 @@ def read_json(path: Path, default: Any = None) -> Any:
 load_json = read_json
 
 
-def write_json(path: Path, payload: Any) -> None:
+def _atomic_write_text(path: Path, text: str) -> None:
+    """Write ``text`` to ``path`` atomically.
+
+    Data is first written to a sibling temp file (so rename is same-filesystem)
+    and ``os.replace`` is then used to swap it into place. This prevents readers
+    from ever seeing a truncated file if the process crashes mid-write.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    tmp_fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=str(path.parent),
+    )
+    try:
+        with os.fdopen(tmp_fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_name, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_name)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def write_json(path: Path, payload: Any) -> None:
+    _atomic_write_text(path, json.dumps(payload, indent=2))
 
 
 def read_jsonl(path: Path) -> List[dict[str, Any]]:
@@ -65,11 +93,10 @@ def read_jsonl(path: Path) -> List[dict[str, Any]]:
 
 
 def write_jsonl(path: Path, rows: Iterable[dict[str, Any]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
     text = "\n".join(json.dumps(row, sort_keys=True) for row in rows)
     if text:
         text += "\n"
-    path.write_text(text, encoding="utf-8")
+    _atomic_write_text(path, text)
 
 
 def append_jsonl(path: Path, row: dict[str, Any]) -> None:

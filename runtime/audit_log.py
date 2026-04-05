@@ -1,11 +1,16 @@
 from __future__ import annotations
 
-import json
 import hashlib
+import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, List
 
 from strategy.v9_engine import CACHE_DIR
+from runtime.store import _atomic_write_text
+
+
+logger = logging.getLogger(__name__)
 
 
 AUDIT_LATEST_PATH = CACHE_DIR / "audit_runs_latest.json"
@@ -31,19 +36,17 @@ def load_audit_runs() -> List[Dict[str, Any]]:
                 if line:
                     rows.append(json.loads(line))
             return rows
-    except Exception:
-        pass
+    except (FileNotFoundError, json.JSONDecodeError, OSError) as exc:
+        logger.warning("Failed to load audit runs (%s); starting from empty list.", exc)
     return []
 
 
 def write_audit_runs(runs: List[Dict[str, Any]]) -> None:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     trimmed = runs[-250:]
-    AUDIT_LATEST_PATH.write_text(json.dumps(trimmed, indent=2), encoding="utf-8")
-    with AUDIT_JSONL_PATH.open("w", encoding="utf-8") as handle:
-        for row in trimmed:
-            handle.write(stable_json(row))
-            handle.write("\n")
+    _atomic_write_text(AUDIT_LATEST_PATH, json.dumps(trimmed, indent=2))
+    jsonl_body = "".join(stable_json(row) + "\n" for row in trimmed)
+    _atomic_write_text(AUDIT_JSONL_PATH, jsonl_body)
 
 
 def merge_audit_records(existing: Dict[str, Any], incoming: Dict[str, Any]) -> Dict[str, Any]:

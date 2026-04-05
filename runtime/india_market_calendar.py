@@ -49,9 +49,18 @@ class MarketClock:
 
 
 def _as_date(value: date | datetime | str) -> date:
+    """Normalize a date-ish value to a :class:`~datetime.date` in IST.
+
+    A tz-aware ``datetime`` is converted to IST before the date component is
+    read. A *naive* ``datetime`` is assumed to already be in IST (the convention
+    used by the runtime scheduler). Previously naive values were treated as
+    "whatever timezone the caller happened to be in", which silently produced
+    off-by-one-day errors when a UTC-naive timestamp (e.g. ``datetime.utcnow()``)
+    was passed to :func:`is_trading_day` or :func:`holiday_name`.
+    """
     if isinstance(value, datetime):
         if value.tzinfo is None:
-            return value.date()
+            value = value.replace(tzinfo=IST)
         return value.astimezone(IST).date()
     if isinstance(value, date):
         return value
