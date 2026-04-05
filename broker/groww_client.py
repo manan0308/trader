@@ -178,18 +178,26 @@ class GrowwSession:
 
     def fetch_universe_prices(self, start: str, refresh: bool = False) -> pd.DataFrame:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        cache_name = f"groww_prices_{pd.Timestamp(start).strftime('%Y%m%d')}.csv"
-        cache_path = self.cache_dir / cache_name
-
-        if cache_path.exists() and not refresh:
-            cached = pd.read_csv(cache_path, index_col=0, parse_dates=True)
-            return cached.sort_index()
 
         effective_start = max(pd.Timestamp(start), GROWW_MIN_HISTORY_START)
         end = pd.Timestamp.utcnow().tz_localize(None).normalize()
 
         if effective_start > end:
             raise RuntimeError("Groww start date is later than today.")
+
+        # Include the end date in the cache key. Previously the cache file was
+        # only keyed by ``start`` so re-running on subsequent days would keep
+        # reading the first-day cache forever, silently hiding every new
+        # candle from downstream consumers.
+        cache_name = (
+            "groww_prices_"
+            f"{pd.Timestamp(start).strftime('%Y%m%d')}_to_{end.strftime('%Y%m%d')}.csv"
+        )
+        cache_path = self.cache_dir / cache_name
+
+        if cache_path.exists() and not refresh:
+            cached = pd.read_csv(cache_path, index_col=0, parse_dates=True)
+            return cached.sort_index()
 
         prices = pd.DataFrame()
         for asset, instrument in self.instrument_map.items():
