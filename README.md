@@ -99,7 +99,7 @@ flowchart TD
 
 The production allocator lives in:
 
-- [strategy/v9_engine.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/strategy/v9_engine.py)
+- [strategy/v9_engine.py](strategy/v9_engine.py)
 
 `v9` is intentionally simpler than the earlier research branches. It removes fragile daily-frequency ideas like Kelly sizing and fast HMM-like logic and keeps what survived validation better.
 
@@ -144,9 +144,9 @@ This is deliberate. It keeps production behavior stable and avoids turning the r
 
 The overlay code lives in:
 
-- [llm/anthropic_risk_overlay.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/llm/anthropic_risk_overlay.py)
-- [llm/critic_flow.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/llm/critic_flow.py)
-- [config/prompts/llm_overlay_meta_prompt.md](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/config/prompts/llm_overlay_meta_prompt.md)
+- [llm/anthropic_risk_overlay.py](llm/anthropic_risk_overlay.py)
+- [llm/critic_flow.py](llm/critic_flow.py)
+- [config/prompts/llm_overlay_meta_prompt.md](config/prompts/llm_overlay_meta_prompt.md)
 
 ### LLM responsibilities
 
@@ -194,8 +194,8 @@ That is the only honest way to learn whether the LLM is helping or just sounding
 
 The paper ledger code lives in:
 
-- [runtime/paper_ledger.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/runtime/paper_ledger.py)
-- [runtime/audit_log.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/runtime/audit_log.py)
+- [runtime/paper_ledger.py](runtime/paper_ledger.py)
+- [runtime/audit_log.py](runtime/audit_log.py)
 
 Every daily run writes JSON artifacts into `cache/`. The important ones are:
 
@@ -229,8 +229,8 @@ This means the system can answer:
 
 Execution planning lives in:
 
-- [execution/order_planner.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/execution/order_planner.py)
-- [execution/groww_order_runner.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/execution/groww_order_runner.py)
+- [execution/order_planner.py](execution/order_planner.py)
+- [execution/groww_order_runner.py](execution/groww_order_runner.py)
 
 The normal production flow is:
 
@@ -251,9 +251,9 @@ Important:
 
 Market data handling lives in:
 
-- [market_data/market_store.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/market_data/market_store.py)
-- [market_data/download_offline_data.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/market_data/download_offline_data.py)
-- [market_data/audit_market_data.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/market_data/audit_market_data.py)
+- [market_data/market_store.py](market_data/market_store.py)
+- [market_data/download_offline_data.py](market_data/download_offline_data.py)
+- [market_data/audit_market_data.py](market_data/audit_market_data.py)
 
 The repo saves local datasets so backtests do not need to re-hit remote APIs every time. The flow is:
 
@@ -268,12 +268,12 @@ This makes backtests faster and more reproducible.
 
 Analytics live in:
 
-- [analytics/significance_report.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/analytics/significance_report.py)
-- [analytics/validation_report.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/analytics/validation_report.py)
+- [analytics/significance_report.py](analytics/significance_report.py)
+- [analytics/validation_report.py](analytics/validation_report.py)
 
 Research branches live in:
 
-- [research](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/research)
+- [research](research)
 
 Those scripts contain challenger models and portability experiments, but the production decision path is still `v9`.
 
@@ -356,13 +356,13 @@ cd ..
 
 ## What To Read Next
 
-- [docs/RUNBOOK.md](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/docs/RUNBOOK.md)
+- [docs/RUNBOOK.md](docs/RUNBOOK.md)
   - exact operator commands
-- [docs/PRODUCTION_CHECKLIST.md](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/docs/PRODUCTION_CHECKLIST.md)
+- [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md)
   - what is left before unattended live trading
-- [docs/INDIA_DATA_SOURCES.md](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/docs/INDIA_DATA_SOURCES.md)
+- [docs/INDIA_DATA_SOURCES.md](docs/INDIA_DATA_SOURCES.md)
   - data caveats, especially for India silver
-- [dashboard/README.md](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/dashboard/README.md)
+- [dashboard/README.md](dashboard/README.md)
   - dashboard-specific notes
 
 ## Short Honest Status
