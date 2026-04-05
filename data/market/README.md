@@ -18,13 +18,13 @@ It is meant to make backtests and research fast and repeatable without repeated 
 From repo root:
 
 ```bash
-./.venv/bin/python -m trader_system.data.download_offline_data --all
+./.venv/bin/python -m market_data.download_offline_data --all
 ```
 
 Use `--refresh` to refresh the raw bars before rebuilding:
 
 ```bash
-./.venv/bin/python -m trader_system.data.download_offline_data --all --refresh
+./.venv/bin/python -m market_data.download_offline_data --all --refresh
 ```
 
 ## Current processed datasets
@@ -48,5 +48,5 @@ Use `--refresh` to refresh the raw bars before rebuilding:
 - You can build that file from local MCX or IBKR exports using:
 
 ```bash
-./.venv/bin/python -m trader_system.data.ingest_india_silver --input /path/to/file.csv --source mcx
+./.venv/bin/python -m market_data.ingest_india_silver --input /path/to/file.csv --source mcx
 ```

@@ -49,7 +49,7 @@ If you want a strict India-only silver sleeve for `2012-04-01` to `2026-03-31`, 
 2. normalize it with:
 
 ```bash
-./.venv/bin/python -m trader_system.data.ingest_india_silver --input /path/to/mcx_or_ibkr_file.csv --source mcx
+./.venv/bin/python -m market_data.ingest_india_silver --input /path/to/mcx_or_ibkr_file.csv --source mcx
 ```
 
 3. save the canonical output as `config/data/silver_india_daily.csv`,

@@ -7,8 +7,8 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from trader_system.execution.rebalance_core import ExecutionConfig, format_plan, plan_rebalance
-from trader_system.execution.groww_adapter import build_groww_order_requests, extract_asset_quantities, order_request_to_payload
+from execution.rebalance_core import ExecutionConfig, format_plan, plan_rebalance
+from execution.groww_adapter import build_groww_order_requests, extract_asset_quantities, order_request_to_payload
 
 
 def test_plan_rebalance_from_cash_builds_buy_orders() -> None:

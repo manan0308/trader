@@ -1,1 +1,1 @@
-5 16 * * 1-5 cd /Users/mananagarwal/Desktop/2nd\ brain/plant\ to\ image/trader && ./.venv/bin/python -m trader_system.runtime.daily_cycle --portfolio-file config/portfolio_state.example.json >> cache/logs/daily_cycle.log 2>&1
+5 16 * * 1-5 cd /Users/mananagarwal/Desktop/2nd\ brain/plant\ to\ image/trader && ./.venv/bin/python -m runtime.daily_cycle --portfolio-file config/portfolio_state.example.json >> cache/logs/daily_cycle.log 2>&1

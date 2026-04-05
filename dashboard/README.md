@@ -22,7 +22,7 @@ npm run build
 
 ```bash
 cd ..
-./.venv/bin/python -m trader_system.runtime.local_api_server --host 127.0.0.1 --port 8050
+./.venv/bin/python -m runtime.local_api_server --host 127.0.0.1 --port 8050
 ```
 
 Open:
@@ -43,14 +43,17 @@ The dashboard is intentionally tabbed now:
 
 ## Data contract
 
-The app reads `public/data/dashboard.json`, which is generated from the Python cache files by `scripts/sync-data.mjs`.
-It now also expects optional `paper_trading`, `audit_runs`, `learning_state`, `overlay_raw`, `overlay_active`, and
-`daily_cycle` sections in that snapshot. Missing sections are handled gracefully and render as empty states.
+The app now prefers `GET /api/dashboard` from the Python server and falls back to `public/data/dashboard.json` if
+needed. The snapshot file is generated from the Python cache files by `scripts/sync-data.mjs`.
+
+It expects optional `paper_trading`, `paper_base`, `paper_comparison`, `audit_runs`, `learning_state`, `overlay_raw`,
+`overlay_active`, and `daily_cycle` sections in that snapshot. Missing sections are handled gracefully and render as
+empty states.
 
 Refresh the underlying live snapshot first if you want current signals:
 
 ```bash
-./.venv/bin/python -m trader_system.runtime.daily_cycle --skip-overlay
+./.venv/bin/python -m runtime.daily_cycle --skip-overlay
 ```
 
 To make it run in the background on macOS, use the install helper from the repo root:

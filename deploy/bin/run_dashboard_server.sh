@@ -9,4 +9,4 @@ PORT="${TRADER_PORT:-8050}"
 mkdir -p "$LOG_DIR"
 
 cd "$REPO"
-exec "$REPO/.venv/bin/python" -m trader_system.runtime.local_api_server --host "$HOST" --port "$PORT" >> "$LOG_DIR/dashboard_server.log" 2>&1
+exec "$REPO/.venv/bin/python" -m runtime.local_api_server --host "$HOST" --port "$PORT" >> "$LOG_DIR/dashboard_server.log" 2>&1

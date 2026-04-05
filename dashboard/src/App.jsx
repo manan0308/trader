@@ -14,6 +14,7 @@ const asObject = (value) => (value && typeof value === "object" && !Array.isArra
 const asArray = (value) => (Array.isArray(value) ? value : []);
 const assetLabel = (value) => (value === "CASH" ? "LIQUIDBEES" : value === "US" ? "MON100" : value);
 const rowDate = (row) => row?.date || row?.as_of || null;
+const pendingCount = (value, fallback = 0) => (Array.isArray(value) ? value.length : Number.isFinite(Number(value)) ? Number(value) : fallback);
 const SERIES_COLORS = {
   PORTFOLIO_V9: "#0f766e",
   EQWT_RISKY: "#b45309",
@@ -255,13 +256,39 @@ export default function App() {
   const [researchTab, setResearchTab] = useState("stats");
 
   useEffect(() => {
-    fetch("/data/dashboard.json", { cache: "no-store" })
-      .then((response) => {
-        if (!response.ok) throw new Error(`Failed to load dashboard snapshot: ${response.status}`);
-        return response.json();
-      })
-      .then(setDashboard)
-      .catch((err) => setError(err.message));
+    let isMounted = true;
+
+    const loadDashboard = async () => {
+      const candidates = ["/api/dashboard", "/data/dashboard.json"];
+      let lastError = null;
+
+      for (const url of candidates) {
+        try {
+          const response = await fetch(url, { cache: "no-store" });
+          if (!response.ok) throw new Error(`Failed to load dashboard snapshot from ${url}: ${response.status}`);
+          const text = await response.text();
+          const payload = JSON.parse(text);
+          if (isMounted) {
+            setDashboard(payload);
+            setError("");
+          }
+          return;
+        } catch (err) {
+          lastError = err;
+        }
+      }
+
+      if (isMounted) {
+        setError(lastError?.message || "Failed to load dashboard snapshot.");
+      }
+    };
+
+    loadDashboard();
+    const intervalId = window.setInterval(loadDashboard, 60_000);
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   const live = asObject(dashboard?.live_signal?.models);
@@ -280,7 +307,7 @@ export default function App() {
   const paperBackfill = asObject(dashboard?.paper_backfill);
   const auditRuns = asArray(dashboard?.audit_runs);
   const latestAudit = auditRuns.length ? auditRuns[auditRuns.length - 1] : {};
-  const v9Weights = asObject(latestAudit.v9_final_weights || dashboard?.current_allocation || execution.target_weights);
+  const v9Weights = asObject(dashboard?.model_allocation || latestAudit.v9_final_weights || dashboard?.current_allocation || execution.target_weights);
   const paperSummary = asObject(latestAudit.paper_summary || paperTrading);
   const paperPositions = asArray(paperTrading.positions).filter((row) => Number(row?.quantity || 0) > 0);
   const paperCurve = useMemo(
@@ -375,7 +402,7 @@ export default function App() {
                       <Metric label="Market" value={marketClock.session || "—"} hint={marketClock.holiday_name || ""} />
                       <Metric label="Paper equity" value={`₹${fmtInr(paperSummary.total_equity || paperTrading.total_equity)}`} />
                       <Metric label="Net PnL" value={fmtSignedPct(paperSummary.return_since_start)} hint={`₹${fmtInr(paperSummary.net_pnl)}`} />
-                      <Metric label="Pending orders" value={String(paperSummary.pending_orders ?? executionOrders.length ?? 0)} />
+                      <Metric label="Pending orders" value={String(pendingCount(paperSummary.pending_orders, executionOrders.length || 0))} />
                     </div>
                     {dashboard?.daily_cycle?.market_closed_skip ? (
                       <StatusNote tone="neutral">
@@ -517,10 +544,14 @@ export default function App() {
                 <Card title="Execution plan" subtitle="Dry-run order plan from the latest cached target">
                   <div className="metric-grid">
                     <Metric label="Portfolio value" value={`₹${fmtInr(execution.portfolio_value)}`} />
-                    <Metric label="Current cash sleeve" value={fmtPct(execution.current_weights?.CASH)} />
-                    <Metric label="Target cash sleeve" value={fmtPct(execution.target_weights?.CASH)} />
+                    <Metric label="Model cash sleeve" value={fmtPct(v9Weights.CASH)} />
+                    <Metric label="Execution cash sleeve" value={fmtPct(execution.target_weights?.CASH)} />
                     <Metric label="Orders" value={String(executionOrders.length)} />
                   </div>
+                  <StatusNote tone="neutral">
+                    The V9 tab shows the model allocation. This tab shows the broker-facing execution target after lot sizes,
+                    rounding, reserve cash, and tradable proxy constraints.
+                  </StatusNote>
                   {dashboard?.daily_cycle?.market_closed_skip ? (
                     <StatusNote tone="neutral">
                       Orders are intentionally blank on Indian market holidays and stale-bar days.
@@ -740,7 +771,7 @@ export default function App() {
                 </div>
 
                 <Card title="Useful places to look" subtitle="If you want to inspect what the system is doing">
-                  <CodeBlock>{`UI:        http://127.0.0.1:8050/\nAPI:       http://127.0.0.1:8050/api\nWeights:   ./.venv/bin/python -m trader_system.runtime.weights_on_date --model v9 --date 2026-04-02\nBackfill:  ./.venv/bin/python -m trader_system.runtime.paper_backfill --start 2026-04-01 --end 2026-04-03 --initial-cash 1000000 --reset --apply\nLogs:      cache/logs/launchd_dashboard.out.log\n           cache/logs/launchd_daily_cycle.out.log`}</CodeBlock>
+                  <CodeBlock>{`UI:        http://127.0.0.1:8050/\nAPI:       http://127.0.0.1:8050/api\nWeights:   ./.venv/bin/python -m runtime.weights_on_date --model v9 --date 2026-04-02\nBackfill:  ./.venv/bin/python -m runtime.paper_backfill --start 2026-04-01 --end 2026-04-03 --initial-cash 1000000 --reset --apply\nLogs:      cache/logs/launchd_dashboard.out.log\n           cache/logs/launchd_daily_cycle.out.log`}</CodeBlock>
                 </Card>
               </div>
             ) : null}

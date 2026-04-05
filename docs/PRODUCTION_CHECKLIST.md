@@ -30,7 +30,7 @@ Done:
 - Reconciliation against live holdings, positions, and available cash
 
 Still needed:
-- Daily scheduler around `python -m trader_system.runtime.daily_cycle`
+- Daily scheduler around `python -m runtime.daily_cycle`
 - Alerting
 - Shadow-mode track record for the Anthropic overlay
 - Fill-level enrichment from broker trades once live placements begin
@@ -38,14 +38,14 @@ Still needed:
 
 ## Recommended runtime
 
-- Cron or scheduled worker runs `python -m trader_system.runtime.daily_cycle`
+- Cron or scheduled worker runs `python -m runtime.daily_cycle`
 - Web app is for monitoring and approvals
 - Do not make the web app the trading engine
 
 ## Deployment recommendation
 
 Phase 1:
-- Daily `python -m trader_system.runtime.daily_cycle` run
+- Daily `python -m runtime.daily_cycle` run
 - Anthropic override only on gated event-risk packets
 - Generate dry-run orders
 - Human review

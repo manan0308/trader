@@ -20,15 +20,14 @@ The design goal is not "AI trades everything." The design goal is:
 
 ```text
 trader/
-├── trader_system/          # Real implementation
-│   ├── strategy/           # v9 engine
-│   ├── runtime/            # daily cycle, paper ledger, server, calendar
-│   ├── execution/          # rebalance math, order plans, broker runner
-│   ├── llm/                # Anthropic overlay, critic, learning
-│   ├── analytics/          # significance, validation, diagnostics
-│   ├── data/               # offline market data store and ingest tools
-│   ├── events/             # structured event store for LLM context
-│   └── broker/             # Groww client and universe loading
+├── strategy/               # v9 engine
+├── runtime/                # daily cycle, paper ledger, API server, calendar
+├── execution/              # rebalance math, order plans, broker runner
+├── llm/                    # Anthropic overlay, critic, learning
+├── analytics/              # significance, validation, diagnostics
+├── market_data/            # offline market data store and ingest tools
+├── events/                 # structured event store for LLM context
+├── broker/                 # Groww client and universe loading
 ├── research/               # Experimental branches and research scripts
 ├── dashboard/              # React monitoring UI
 ├── deploy/                 # launchd, systemd, nginx-friendly scripts
@@ -65,7 +64,7 @@ flowchart LR
 The main daily operator command is:
 
 ```bash
-./.venv/bin/python -m trader_system.runtime.daily_cycle --portfolio-file config/portfolio_state.example.json
+./.venv/bin/python -m runtime.daily_cycle --portfolio-file config/portfolio_state.example.json
 ```
 
 That command runs the full daily workflow end to end.
@@ -100,7 +99,7 @@ flowchart TD
 
 The production allocator lives in:
 
-- [trader_system/strategy/v9_engine.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/trader_system/strategy/v9_engine.py)
+- [strategy/v9_engine.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/strategy/v9_engine.py)
 
 `v9` is intentionally simpler than the earlier research branches. It removes fragile daily-frequency ideas like Kelly sizing and fast HMM-like logic and keeps what survived validation better.
 
@@ -145,8 +144,8 @@ This is deliberate. It keeps production behavior stable and avoids turning the r
 
 The overlay code lives in:
 
-- [trader_system/llm/anthropic_risk_overlay.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/trader_system/llm/anthropic_risk_overlay.py)
-- [trader_system/llm/critic_flow.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/trader_system/llm/critic_flow.py)
+- [llm/anthropic_risk_overlay.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/llm/anthropic_risk_overlay.py)
+- [llm/critic_flow.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/llm/critic_flow.py)
 - [config/prompts/llm_overlay_meta_prompt.md](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/config/prompts/llm_overlay_meta_prompt.md)
 
 ### LLM responsibilities
@@ -195,8 +194,8 @@ That is the only honest way to learn whether the LLM is helping or just sounding
 
 The paper ledger code lives in:
 
-- [trader_system/runtime/paper_ledger.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/trader_system/runtime/paper_ledger.py)
-- [trader_system/runtime/audit_log.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/trader_system/runtime/audit_log.py)
+- [runtime/paper_ledger.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/runtime/paper_ledger.py)
+- [runtime/audit_log.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/runtime/audit_log.py)
 
 Every daily run writes JSON artifacts into `cache/`. The important ones are:
 
@@ -230,8 +229,8 @@ This means the system can answer:
 
 Execution planning lives in:
 
-- [trader_system/execution/order_planner.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/trader_system/execution/order_planner.py)
-- [trader_system/execution/groww_order_runner.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/trader_system/execution/groww_order_runner.py)
+- [execution/order_planner.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/execution/order_planner.py)
+- [execution/groww_order_runner.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/execution/groww_order_runner.py)
 
 The normal production flow is:
 
@@ -252,9 +251,9 @@ Important:
 
 Market data handling lives in:
 
-- [trader_system/data/market_store.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/trader_system/data/market_store.py)
-- [trader_system/data/download_offline_data.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/trader_system/data/download_offline_data.py)
-- [trader_system/data/audit_market_data.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/trader_system/data/audit_market_data.py)
+- [market_data/market_store.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/market_data/market_store.py)
+- [market_data/download_offline_data.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/market_data/download_offline_data.py)
+- [market_data/audit_market_data.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/market_data/audit_market_data.py)
 
 The repo saves local datasets so backtests do not need to re-hit remote APIs every time. The flow is:
 
@@ -269,8 +268,8 @@ This makes backtests faster and more reproducible.
 
 Analytics live in:
 
-- [trader_system/analytics/significance_report.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/trader_system/analytics/significance_report.py)
-- [trader_system/analytics/validation_report.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/trader_system/analytics/validation_report.py)
+- [analytics/significance_report.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/analytics/significance_report.py)
+- [analytics/validation_report.py](/Users/mananagarwal/Desktop/2nd%20brain/plant%20to%20image/trader/analytics/validation_report.py)
 
 Research branches live in:
 
@@ -322,26 +321,26 @@ From the repo root:
 ### Main daily run
 
 ```bash
-./.venv/bin/python -m trader_system.runtime.daily_cycle --portfolio-file config/portfolio_state.example.json
+./.venv/bin/python -m runtime.daily_cycle --portfolio-file config/portfolio_state.example.json
 ```
 
 ### Exact model weights on a date
 
 ```bash
-./.venv/bin/python -m trader_system.runtime.weights_on_date --model v9 --date 2026-04-02 --json
+./.venv/bin/python -m runtime.weights_on_date --model v9 --date 2026-04-02 --json
 ```
 
 ### Build execution plan only
 
 ```bash
-./.venv/bin/python -m trader_system.execution.order_planner --portfolio-file config/portfolio_state.example.json
+./.venv/bin/python -m execution.order_planner --portfolio-file config/portfolio_state.example.json
 ```
 
 ### Validation
 
 ```bash
-./.venv/bin/python -m trader_system.analytics.significance_report
-./.venv/bin/python -m trader_system.analytics.validation_report
+./.venv/bin/python -m analytics.significance_report
+./.venv/bin/python -m analytics.validation_report
 ```
 
 ### Dashboard
@@ -352,7 +351,7 @@ npm install
 npm run build
 
 cd ..
-./.venv/bin/python -m trader_system.runtime.local_api_server --host 127.0.0.1 --port 8050
+./.venv/bin/python -m runtime.local_api_server --host 127.0.0.1 --port 8050
 ```
 
 ## What To Read Next

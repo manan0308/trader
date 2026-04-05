@@ -7,7 +7,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from trader_system.data.ingest_india_silver import choose_daily_close
+from market_data.ingest_india_silver import choose_daily_close
 
 
 def test_choose_daily_close_prefers_higher_volume_then_nearer_expiry() -> None:

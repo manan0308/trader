@@ -36,8 +36,8 @@ import yfinance as yf
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from trader_system.data.market_store import load_processed_matrix
-from trader_system.strategy.v9_engine import (
+from market_data.market_store import load_processed_matrix
+from strategy.v9_engine import (
     ALL,
     CACHE_DIR,
     DEFAULT_RF,

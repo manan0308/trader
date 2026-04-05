@@ -1,1 +1,0 @@
-"""Trader system package."""

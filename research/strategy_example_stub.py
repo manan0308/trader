@@ -15,7 +15,7 @@ ALL = RISKY + ["CASH"]
 
 def fetch_data(start: str = "2012-01-01") -> pd.DataFrame:
     # Optional. If you omit this, strategy_tester.py will use the shared
-    # cleaned INR data source from trader_system.strategy.v9_engine.
+    # cleaned INR data source from strategy.v9_engine.
     raise NotImplementedError
 
 

@@ -9,7 +9,7 @@
   <array>
     <string>/Users/mananagarwal/Desktop/2nd brain/plant to image/trader/.venv/bin/python</string>
     <string>-m</string>
-    <string>trader_system.runtime.daily_cycle</string>
+    <string>runtime.daily_cycle</string>
     <string>--portfolio-file</string>
     <string>/Users/mananagarwal/Desktop/2nd brain/plant to image/trader/config/portfolio_state.example.json</string>
   </array>

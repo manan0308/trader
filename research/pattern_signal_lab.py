@@ -28,7 +28,7 @@ import pandas as pd
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from trader_system.data.market_store import (
+from market_data.market_store import (
     INDIA_BENCHMARK_TICKERS,
     INDIA_RESEARCH_TICKERS,
     INDIA_TRADABLE_TICKERS,

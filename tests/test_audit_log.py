@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from trader_system.runtime.audit_log import merge_audit_records
+from runtime.audit_log import merge_audit_records
 
 
 def test_merge_audit_records_preserves_evaluations_and_updates_submission() -> None:

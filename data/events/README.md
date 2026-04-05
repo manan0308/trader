@@ -16,7 +16,7 @@ This folder holds retrieved event facts for the LLM overlay and critic.
 From repo root:
 
 ```bash
-./.venv/bin/python -m trader_system.events.structured_event_store --refresh
+./.venv/bin/python -m events.structured_event_store --refresh
 ```
 
 The event packet is intentionally small:

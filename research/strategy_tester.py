@@ -34,7 +34,7 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from trader_system.strategy.v9_engine import (
+from strategy.v9_engine import (
     ALL,
     RISKY,
     DEFAULT_BACKTEST_END,

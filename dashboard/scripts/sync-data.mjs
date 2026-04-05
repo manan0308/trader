@@ -17,6 +17,13 @@ function readJsonIfExists(filePath, fallback = null) {
   }
 }
 
+function overlayHasEffect(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  const defaultRisk = Number(payload.default_risk_off_override || 0);
+  const dates = Array.isArray(payload.dates) ? payload.dates : [];
+  return defaultRisk > 0 || dates.length > 0;
+}
+
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
 }
@@ -58,7 +65,8 @@ const reconciliation = readJsonIfExists(path.join(cacheDir, "reconciliation_late
 const executionConfirmation = readJsonIfExists(path.join(cacheDir, "execution_confirmation_latest.json"), {});
 const fullSample = alphaV9.full_sample || {};
 const stitched = alphaV9.wfo?.stitched || {};
-const effectiveOverlay = Object.keys(overlayActive || {}).length ? overlayActive : overlayRaw;
+const latestAudit = Array.isArray(auditRuns) && auditRuns.length ? auditRuns[auditRuns.length - 1] : {};
+const effectiveOverlay = overlayHasEffect(overlayActive) ? overlayActive : overlayRaw;
 const overlayDates = Array.isArray(effectiveOverlay?.dates) ? effectiveOverlay.dates : [];
 const latestOverlay = overlayDates.length ? overlayDates[overlayDates.length - 1] : null;
 
@@ -83,7 +91,9 @@ const benchmarkRows = [
 const dashboard = {
   generated_at: new Date().toISOString(),
   as_of: dailyCycle.as_of || liveSignal.as_of || executionPlan.as_of || null,
-  current_allocation: executionPlan.plan?.target_weights || executionPlan.plan?.current_weights || {},
+  model_allocation: latestAudit?.v9_final_weights || executionPlan.plan?.current_weights || {},
+  execution_target_allocation: executionPlan.plan?.target_weights || {},
+  current_allocation: latestAudit?.v9_final_weights || executionPlan.plan?.target_weights || executionPlan.plan?.current_weights || {},
   execution_plan: executionPlan.plan || {},
   execution_plan_base: executionPlanBase.plan || {},
   live_signal: liveSignal,

@@ -29,8 +29,8 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
-from trader_system.data.market_store import load_processed_matrix
-from trader_system.strategy.v9_engine import (
+from market_data.market_store import load_processed_matrix
+from strategy.v9_engine import (
     ALL,
     RISKY,
     CACHE_DIR,

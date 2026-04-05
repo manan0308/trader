@@ -23,4 +23,4 @@ Notes:
 
 - Dates should be daily trading dates in `YYYY-MM-DD` format.
 - Values should be India-denominated silver prices for the chosen benchmark source.
-- Once this file exists, `python -m trader_system.strategy.v9_engine --universe-mode benchmark` will use it automatically for the `SILVER` sleeve.
+- Once this file exists, `python -m strategy.v9_engine --universe-mode benchmark` will use it automatically for the `SILVER` sleeve.

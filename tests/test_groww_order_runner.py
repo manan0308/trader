@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from trader_system.execution.groww_order_runner import build_reference_id, merged_plan_orders
+from execution.groww_order_runner import build_reference_id, merged_plan_orders
 
 
 def test_merged_plan_orders_keeps_order_and_payloads() -> None:
