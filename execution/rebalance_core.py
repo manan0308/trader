@@ -60,6 +60,7 @@ class RebalancePlan:
     target_values: pd.Series
     current_values: pd.Series
     target_quantities: pd.Series
+    post_trade_quantities: pd.Series
     post_trade_cash: float
     turnover_value: float
     orders: list[OrderIntent] = field(default_factory=list)
@@ -320,7 +321,8 @@ def plan_rebalance(
         target_weights=target_w,
         target_values=target_values,
         current_values=current_values,
-        target_quantities=working_qty,
+        target_quantities=raw_target_qty,
+        post_trade_quantities=working_qty,
         post_trade_cash=working_cash,
         turnover_value=turnover_value,
         orders=planned_orders,

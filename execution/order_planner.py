@@ -170,6 +170,9 @@ def main() -> None:
             "current_weights": plan.starting_weights.to_dict(),
             "target_weights": plan.target_weights.to_dict(),
             "target_quantities": {asset: int(plan.target_quantities[asset]) for asset in plan.target_quantities.index},
+            "post_trade_quantities": {
+                asset: int(plan.post_trade_quantities[asset]) for asset in plan.post_trade_quantities.index
+            },
             "reserve_cash": plan.reserve_cash,
             "post_trade_cash": plan.post_trade_cash,
             "orders": [

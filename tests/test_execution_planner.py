@@ -138,6 +138,28 @@ def test_plan_rebalance_rejects_non_positive_price() -> None:
         )
 
 
+def test_plan_rebalance_preserves_true_target_quantities_when_cash_blocks_buy() -> None:
+    plan = plan_rebalance(
+        target_weights={"NIFTY": 1.0},
+        holdings={},
+        prices={
+            "NIFTY": 400.0,
+            "MIDCAP": 150.0,
+            "SMALLCAP": 80.0,
+            "GOLD": 70.0,
+            "SILVER": 90.0,
+            "US": 200.0,
+            "CASH": 1_000.0,
+        },
+        available_cash=400.5,
+        config=ExecutionConfig(reserve_cash_value=0.0, reserve_cash_weight=0.0, min_order_value=1.0),
+        as_of=pd.Timestamp("2026-04-03"),
+    )
+    assert int(plan.target_quantities["NIFTY"]) == 1
+    assert int(plan.post_trade_quantities["NIFTY"]) == 0
+    assert plan.orders == []
+
+
 def test_format_plan_has_order_summary() -> None:
     target = {"NIFTY": 1.0}
     prices = {

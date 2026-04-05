@@ -326,19 +326,23 @@ def reconcile_payload(plan_payload: Mapping[str, Any], session: GrowwSession) ->
         available_cash=float(snapshot.get("available_cash") or 0.0),
     )
     target_quantities = plan_payload.get("plan", {}).get("target_quantities", {})
+    post_trade_quantities = plan_payload.get("plan", {}).get("post_trade_quantities", {})
     target_weights = plan_payload.get("plan", {}).get("target_weights", {})
 
     drifts = []
     for asset, target_qty in sorted(target_quantities.items()):
         actual_qty = int(actual["quantities"].get(asset, 0))
+        post_trade_qty = int(post_trade_quantities.get(asset, target_qty))
         target_weight = float(target_weights.get(asset, 0.0))
         actual_weight = float(actual["weights"].get(asset, 0.0))
         drifts.append(
             {
                 "asset": asset,
                 "target_quantity": int(target_qty),
+                "post_trade_quantity": post_trade_qty,
                 "actual_quantity": actual_qty,
                 "quantity_gap": actual_qty - int(target_qty),
+                "plan_execution_gap": actual_qty - post_trade_qty,
                 "target_weight": target_weight,
                 "actual_weight": actual_weight,
                 "weight_gap": actual_weight - target_weight,

@@ -16,10 +16,10 @@ from runtime.store import (
     PAPER_HISTORY_PATH,
     PAPER_STATE_PATH,
     PAPER_SUMMARY_PATH,
-    append_jsonl,
     read_json,
     read_jsonl,
     write_json,
+    write_jsonl,
 )
 
 
@@ -96,8 +96,13 @@ def fill_pending_orders(
     cash = float(state.get("cash", 0.0))
     pending = list(state.get("pending_orders", []))
     filled: List[Dict[str, Any]] = []
+    remaining: List[Dict[str, Any]] = []
 
     for order in pending:
+        created_at = str(order.get("created_at", "")).strip()
+        if created_at and created_at >= as_of:
+            remaining.append(dict(order))
+            continue
         asset = str(order.get("asset", "")).upper()
         if asset not in ALL:
             continue
@@ -112,6 +117,7 @@ def fill_pending_orders(
         if side == "BUY":
             affordable = gross + fees <= cash + 1e-9
             if not affordable:
+                remaining.append(dict(order))
                 continue
             positions[asset] += quantity
             cash -= gross + fees
@@ -141,7 +147,7 @@ def fill_pending_orders(
 
     state["positions"] = positions
     state["cash"] = float(cash)
-    state["pending_orders"] = []
+    state["pending_orders"] = remaining
     state["as_of"] = as_of
     return filled
 
@@ -227,7 +233,12 @@ def append_paper_history(
         "filled_count": len(list(filled_orders)),
         "queued_count": len(list(queued_orders)),
     }
-    append_jsonl(paths.history_path, row)
+    rows = read_jsonl(paths.history_path)
+    if rows and rows[-1].get("as_of") == row["as_of"]:
+        rows[-1] = row
+    else:
+        rows.append(row)
+    write_jsonl(paths.history_path, rows)
     return row
 
 
