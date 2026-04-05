@@ -1,0 +1,25 @@
+{
+  "cash": 250000,
+  "positions": [
+    {
+      "asset": "NIFTY",
+      "symbol": "NIFTYBEES",
+      "quantity": 400
+    },
+    {
+      "asset": "GOLD",
+      "symbol": "GOLDBEES",
+      "quantity": 500
+    },
+    {
+      "asset": "US",
+      "symbol": "MON100",
+      "quantity": 150
+    },
+    {
+      "asset": "CASH",
+      "symbol": "LIQUIDBEES",
+      "quantity": 0
+    }
+  ]
+}

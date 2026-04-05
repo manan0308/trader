@@ -1,0 +1,13 @@
+[Unit]
+Description=Trader dashboard API server
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/Users/mananagarwal/Desktop/2nd brain/plant to image/trader
+ExecStart=/bin/zsh /Users/mananagarwal/Desktop/2nd brain/plant to image/trader/deploy/bin/run_dashboard_server.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

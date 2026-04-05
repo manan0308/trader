@@ -1,0 +1,44 @@
+{
+  "NIFTY": {
+    "exchange": "NSE",
+    "segment": "CASH",
+    "trading_symbol": "NIFTYBEES",
+    "groww_symbol": "NSE-NIFTYBEES"
+  },
+  "MIDCAP": {
+    "exchange": "NSE",
+    "segment": "CASH",
+    "trading_symbol": "MID150BEES",
+    "groww_symbol": "NSE-MID150BEES"
+  },
+  "SMALLCAP": {
+    "exchange": "NSE",
+    "segment": "CASH",
+    "trading_symbol": "SMALLCAP",
+    "groww_symbol": "NSE-SMALLCAP"
+  },
+  "GOLD": {
+    "exchange": "NSE",
+    "segment": "CASH",
+    "trading_symbol": "GOLDBEES",
+    "groww_symbol": "NSE-GOLDBEES"
+  },
+  "SILVER": {
+    "exchange": "NSE",
+    "segment": "CASH",
+    "trading_symbol": "SILVERBEES",
+    "groww_symbol": "NSE-SILVERBEES"
+  },
+  "US": {
+    "exchange": "NSE",
+    "segment": "CASH",
+    "trading_symbol": "MON100",
+    "groww_symbol": "NSE-MON100"
+  },
+  "CASH": {
+    "exchange": "NSE",
+    "segment": "CASH",
+    "trading_symbol": "LIQUIDBEES",
+    "groww_symbol": "NSE-LIQUIDBEES"
+  }
+}

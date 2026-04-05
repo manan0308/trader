@@ -1,0 +1,8 @@
+[Unit]
+Description=Trader daily cycle
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/Users/mananagarwal/Desktop/2nd brain/plant to image/trader
+ExecStart=/bin/zsh /Users/mananagarwal/Desktop/2nd brain/plant to image/trader/deploy/bin/run_daily_cycle.sh

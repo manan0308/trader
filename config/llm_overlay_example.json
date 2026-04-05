@@ -1,0 +1,26 @@
+{
+  "as_of": "2026-04-02",
+  "default_risk_off_override": 0.0,
+  "dates": [
+    {
+      "date": "2026-04-03",
+      "risk_off_override": 0.35,
+      "confidence": 0.62,
+      "holding_days": 2,
+      "summary": "elevated event risk into a major macro release",
+      "drivers": [
+        "known scheduled macro event",
+        "potential INR and rate volatility spillover"
+      ],
+      "asset_bias": {
+        "NIFTY": -0.2,
+        "MIDCAP": -0.3,
+        "SMALLCAP": -0.3,
+        "GOLD": 0.2,
+        "SILVER": 0.0,
+        "US": 0.1,
+        "CASH": 0.3
+      }
+    }
+  ]
+}

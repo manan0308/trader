@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.trader.daily-cycle</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/mananagarwal/Desktop/2nd brain/plant to image/trader/.venv/bin/python</string>
+    <string>-m</string>
+    <string>trader_system.runtime.daily_cycle</string>
+    <string>--portfolio-file</string>
+    <string>/Users/mananagarwal/Desktop/2nd brain/plant to image/trader/config/portfolio_state.example.json</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/mananagarwal/Desktop/2nd brain/plant to image/trader</string>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>16</integer>
+    <key>Minute</key>
+    <integer>5</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/Users/mananagarwal/Desktop/2nd brain/plant to image/trader/cache/logs/launchd_daily_cycle.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/mananagarwal/Desktop/2nd brain/plant to image/trader/cache/logs/launchd_daily_cycle.err.log</string>
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>

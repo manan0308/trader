@@ -1,0 +1,10 @@
+[Unit]
+Description=Run trader daily cycle after market close
+
+[Timer]
+OnCalendar=Mon..Fri 16:05
+Persistent=true
+Unit=trader-daily-cycle.service
+
+[Install]
+WantedBy=timers.target

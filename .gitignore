@@ -1,0 +1,16 @@
+.DS_Store
+.venv/
+__pycache__/
+.pytest_cache/
+cache/
+dashboard/node_modules/
+dashboard/dist/
+dashboard/public/data/
+*.pyc
+config/local.env
+config/runtime.env
+data/market/raw/
+data/market/processed/
+data/market/manifest.json
+data/events/raw/
+data/events/derived/
