@@ -10,6 +10,7 @@
     <string>/Users/mananagarwal/Desktop/2nd brain/plant to image/trader/.venv/bin/python</string>
     <string>-m</string>
     <string>runtime.daily_cycle</string>
+    <string>--refresh-cache</string>
     <string>--portfolio-file</string>
     <string>/Users/mananagarwal/Desktop/2nd brain/plant to image/trader/config/portfolio_state.example.json</string>
   </array>
@@ -20,9 +21,9 @@
   <key>StartCalendarInterval</key>
   <dict>
     <key>Hour</key>
-    <integer>16</integer>
+    <integer>18</integer>
     <key>Minute</key>
-    <integer>5</integer>
+    <integer>45</integer>
   </dict>
 
   <key>StandardOutPath</key>

@@ -25,7 +25,7 @@ import pandas as pd
 from statsmodels.stats.multitest import multipletests
 from scipy import stats
 
-from strategy.v9_engine import ALL, CACHE_DIR, DEFAULT_BACKTEST_END, DEFAULT_BACKTEST_START, DEFAULT_RF, DEFAULT_TX, YahooFinanceSource, benchmark_weights, performance_metrics
+from strategy.v9_engine import ALL, CACHE_DIR, DEFAULT_BACKTEST_END, DEFAULT_BACKTEST_START, DEFAULT_RF, DEFAULT_TX, RISKY, YahooFinanceSource, benchmark_weights, performance_metrics
 from research.alpha_v11_macro_value_research import parametric_v9_wfo
 from research.alpha_v12_meta_ensemble import BASE_V9
 from analytics.significance_report import (
@@ -162,6 +162,21 @@ def rolling_sharpe_series(returns: pd.Series, rf: float, window: int = 63, min_p
     return out.replace([np.inf, -np.inf], np.nan).dropna()
 
 
+def sharpe_stability_summary(expanding: pd.Series, rolling: pd.Series) -> Dict[str, float]:
+    exp = pd.Series(expanding).dropna()
+    rol = pd.Series(rolling).dropna()
+    return {
+        "expanding_sharpe_latest": float(exp.iloc[-1]) if len(exp) else float("nan"),
+        "expanding_sharpe_std": float(exp.std()) if len(exp) > 1 else float("nan"),
+        "expanding_sharpe_min": float(exp.min()) if len(exp) else float("nan"),
+        "expanding_sharpe_max": float(exp.max()) if len(exp) else float("nan"),
+        "rolling_sharpe_latest": float(rol.iloc[-1]) if len(rol) else float("nan"),
+        "rolling_sharpe_std": float(rol.std()) if len(rol) > 1 else float("nan"),
+        "rolling_sharpe_min": float(rol.min()) if len(rol) else float("nan"),
+        "rolling_sharpe_max": float(rol.max()) if len(rol) else float("nan"),
+    }
+
+
 def downsample_frame(frame: pd.DataFrame, freq: str) -> pd.DataFrame:
     if frame.empty:
         return frame
@@ -181,6 +196,27 @@ def frame_to_rows(frame: pd.DataFrame) -> List[Dict[str, object]]:
             item[str(key)] = None if pd.isna(value) else float(value)
         rows.append(item)
     return rows
+
+
+def buy_hold_fixed_mix_returns(
+    prices: pd.DataFrame,
+    weights: Dict[str, float],
+    common_dates: pd.DatetimeIndex,
+    base_value: float = 1.0,
+) -> pd.Series:
+    safe_weights = {asset: float(weight) for asset, weight in weights.items() if asset in prices.columns and weight > 0.0}
+    if not safe_weights or len(common_dates) == 0:
+        return pd.Series(dtype=float)
+
+    first = prices.loc[common_dates[0], list(safe_weights.keys())]
+    units = {asset: (base_value * weight) / float(first[asset]) for asset, weight in safe_weights.items() if float(first[asset]) > 0}
+    if not units:
+        return pd.Series(dtype=float)
+
+    bh_equity = pd.Series(0.0, index=common_dates, dtype=float)
+    for asset, qty in units.items():
+        bh_equity = bh_equity.add(prices.loc[common_dates, asset] * qty, fill_value=0.0)
+    return bh_equity.pct_change(fill_method=None).fillna(0.0)
 
 
 def build_asset_portfolio_diagnostics(
@@ -203,29 +239,36 @@ def build_asset_portfolio_diagnostics(
         tx_cost=tx_cost,
     )
     eqwt_returns = pd.Series(eqwt_metrics["returns"]).reindex(common_dates).fillna(0.0)  # type: ignore[index]
+    buy_hold_weights = {asset: 1.0 / len(RISKY) for asset in RISKY}
+    buy_hold_returns = buy_hold_fixed_mix_returns(prices, buy_hold_weights, common_dates)
 
     series_map: Dict[str, pd.Series] = {asset: price_returns[asset] for asset in ALL}
     series_map["PORTFOLIO_V9"] = portfolio_returns
     series_map["EQWT_RISKY"] = eqwt_returns
+    series_map["BUY_HOLD_FIXED_MIX"] = buy_hold_returns
 
     diagnostics_rows: List[Dict[str, object]] = []
     expanding_frames: Dict[str, pd.Series] = {}
     rolling_frames: Dict[str, pd.Series] = {}
     for name, series in series_map.items():
+        expanding = expanding_sharpe_series(series, rf, min_periods=30)
+        rolling = rolling_sharpe_series(series, rf, window=63, min_periods=30)
+        stability = sharpe_stability_summary(expanding, rolling)
         sharpe_stats = sharpe_t_test(series, rf)
         dist = distribution_diagnostics(series)
         diagnostics_rows.append(
             {
                 "name": name,
-                "kind": "portfolio" if name == "PORTFOLIO_V9" else ("benchmark" if name == "EQWT_RISKY" else "asset"),
+                "kind": "portfolio" if name == "PORTFOLIO_V9" else ("benchmark" if name in {"EQWT_RISKY", "BUY_HOLD_FIXED_MIX"} else "asset"),
                 "annualized_return": cagr(series),
                 "annualized_vol": float(pd.Series(series).dropna().std() * np.sqrt(252.0)),
                 **sharpe_stats,
                 **dist,
+                **stability,
             }
         )
-        expanding_frames[name] = expanding_sharpe_series(series, rf, min_periods=30)
-        rolling_frames[name] = rolling_sharpe_series(series, rf, window=63, min_periods=30)
+        expanding_frames[name] = expanding
+        rolling_frames[name] = rolling
 
     expanding_frame = pd.DataFrame(expanding_frames).dropna(how="all")
     rolling_frame = pd.DataFrame(rolling_frames).dropna(how="all")
@@ -236,6 +279,7 @@ def build_asset_portfolio_diagnostics(
         {
             "PORTFOLIO_V9": base_value * (1.0 + portfolio_returns).cumprod(),
             "EQWT_RISKY": base_value * (1.0 + eqwt_returns).cumprod(),
+            "BUY_HOLD_FIXED_MIX": base_value * (1.0 + buy_hold_returns).cumprod(),
         }
     )
     equity_down = downsample_frame(equity_frame, "W-FRI")
@@ -245,6 +289,8 @@ def build_asset_portfolio_diagnostics(
     return {
         "base_value": base_value,
         "benchmark_overlay": "EQWT_RISKY",
+        "benchmark_secondary": "BUY_HOLD_FIXED_MIX",
+        "buy_hold_fixed_weights": buy_hold_weights,
         "rolling_window_days": 63,
         "expanding_start_days": 30,
         "diagnostics_rows": diagnostics_rows,

@@ -56,10 +56,12 @@ const liveSignal = readJsonIfExists(path.join(cacheDir, "live_signal_latest.json
 const paperTrading = readJsonIfExists(path.join(cacheDir, "paper_trading_latest.json"), {});
 const paperBase = readJsonIfExists(path.join(cacheDir, "paper_base_latest.json"), {});
 const paperComparison = readJsonIfExists(path.join(cacheDir, "paper_comparison_latest.json"), {});
+const paperBenchmark = readJsonIfExists(path.join(cacheDir, "paper_benchmark_latest.json"), {});
 const paperBackfill = readJsonIfExists(path.join(cacheDir, "paper_backfill_latest.json"), {});
 const auditRuns = readJsonIfExists(path.join(cacheDir, "audit_runs_latest.json"), []);
 const learningState = readJsonIfExists(path.join(cacheDir, "learning_state.json"), {});
 const dailyCycle = readJsonIfExists(path.join(cacheDir, "daily_cycle_latest.json"), {});
+const growwAuth = readJsonIfExists(path.join(cacheDir, "groww_auth_status.json"), {});
 const executionSubmissions = readJsonIfExists(path.join(cacheDir, "execution_submissions_latest.json"), []);
 const reconciliation = readJsonIfExists(path.join(cacheDir, "reconciliation_latest.json"), {});
 const executionConfirmation = readJsonIfExists(path.join(cacheDir, "execution_confirmation_latest.json"), {});
@@ -112,10 +114,12 @@ const dashboard = {
   paper_trading: paperTrading,
   paper_base: paperBase,
   paper_comparison: paperComparison,
+  paper_benchmark: paperBenchmark,
   paper_backfill: paperBackfill,
   audit_runs: auditRuns,
   learning_state: learningState,
   daily_cycle: dailyCycle,
+  groww_auth: growwAuth,
   execution_submissions: executionSubmissions,
   reconciliation,
   execution_confirmation: executionConfirmation,

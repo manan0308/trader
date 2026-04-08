@@ -26,6 +26,7 @@ import pandas as pd
 from strategy.v9_engine import (
     ALL,
     DEFAULT_TX,
+    GrowwSource,
     NarrativeOverlay,
     StrategyConfig,
     YahooFinanceSource,
@@ -33,12 +34,14 @@ from strategy.v9_engine import (
     portfolio_returns,
     run_strategy,
 )
+from broker.groww_client import GrowwSession, load_production_groww_universe
 from research.alpha_v11_macro_value_research import fetch_macro_panel
 from research.alpha_v12_meta_ensemble import BASE_V9, meta_candidates, run_meta_strategy
 from research.alpha_v13_sparse_meta import risk_preserving_candidates, run_sparse_meta_strategy
 from research.alpha_v14_sparse_sleeves import run_sparse_sleeve_strategy, sleeve_sparse_candidates
 from runtime.india_market_calendar import market_clock, next_trading_day
 from runtime.display_labels import asset_label
+from runtime.env_loader import load_runtime_env
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -82,6 +85,43 @@ def model_specs() -> Dict[str, ModelSpec]:
         "v13": ModelSpec(name="v13", label="v13 sparse_top4_monthly_slow", builder=v13_builder),
         "v14": ModelSpec(name="v14", label="v14 sleeve_top1_slow", builder=v14_builder),
     }
+
+
+def resolve_data_source(requested: str, groww_universe_file: str | None = None) -> str:
+    if requested in {"yfinance", "groww"}:
+        return requested
+    load_runtime_env(override=True)
+    try:
+        instruments = load_production_groww_universe(groww_universe_file)
+        GrowwSession.from_env(instrument_map=instruments, cache_dir=CACHE_DIR)
+        return "groww"
+    except Exception:
+        return "yfinance"
+
+
+def fetch_prices(
+    *,
+    start: str,
+    refresh: bool,
+    data_source: str,
+    universe_mode: str,
+    groww_universe_file: str | None = None,
+) -> pd.DataFrame:
+    if data_source == "groww":
+        try:
+            instruments = load_production_groww_universe(groww_universe_file)
+            session = GrowwSession.from_env(instrument_map=instruments, cache_dir=CACHE_DIR)
+            prices = GrowwSource(session).fetch(start=start, refresh=refresh)
+            prices.attrs["data_source_actual"] = "groww"
+            return prices
+        except Exception as exc:
+            prices = YahooFinanceSource(universe_mode=universe_mode).fetch(start, refresh=refresh)
+            prices.attrs["data_source_actual"] = "yfinance"
+            prices.attrs["data_source_fallback_reason"] = f"{type(exc).__name__}: {exc}"
+            return prices
+    prices = YahooFinanceSource(universe_mode=universe_mode).fetch(start, refresh=refresh)
+    prices.attrs["data_source_actual"] = "yfinance"
+    return prices
 
 
 def top_weights(row: pd.Series, top_n: int = 3) -> str:
@@ -190,20 +230,34 @@ def main() -> None:
     parser.add_argument("--model", choices=["v9", "v12", "v13", "v14", "all"], default="all")
     parser.add_argument("--days", type=int, default=5)
     parser.add_argument("--start", default="2012-01-01")
+    parser.add_argument("--data-source", choices=["auto", "yfinance", "groww"], default="auto")
     parser.add_argument("--universe-mode", choices=["research", "benchmark", "tradable"], default="benchmark")
+    parser.add_argument("--groww-universe-file")
     parser.add_argument("--refresh-cache", action="store_true")
     parser.add_argument("--llm-override-file")
     parser.add_argument("--tx-bps", type=float, default=30.0)
     parser.add_argument("--no-cache-write", action="store_true")
     args = parser.parse_args()
 
-    prices = YahooFinanceSource(universe_mode=args.universe_mode).fetch(args.start, refresh=args.refresh_cache)
+    data_source = resolve_data_source(args.data_source, args.groww_universe_file)
+    prices = fetch_prices(
+        start=args.start,
+        refresh=args.refresh_cache,
+        data_source=data_source,
+        universe_mode=args.universe_mode,
+        groww_universe_file=args.groww_universe_file,
+    )
+    actual_data_source = prices.attrs.get("data_source_actual", data_source)
+    fallback_reason = prices.attrs.get("data_source_fallback_reason")
     overlay = load_llm_overlay(args.llm_override_file, prices.index)
     tx_cost = args.tx_bps / 10_000
     clock = market_clock()
 
     dashboard_payload = {
         "as_of": prices.index[-1].strftime("%Y-%m-%d"),
+        "data_source": actual_data_source,
+        "requested_data_source": data_source,
+        "data_source_fallback_reason": fallback_reason,
         "tx_cost": tx_cost,
         "universe_mode": args.universe_mode,
         "market_clock": clock.__dict__,
@@ -212,7 +266,7 @@ def main() -> None:
     specs = model_specs()
     selected = specs.values() if args.model == "all" else [specs[args.model]]
 
-    print(f"Latest available market data is through {prices.index[-1]:%Y-%m-%d}.")
+    print(f"Latest available market data is through {prices.index[-1]:%Y-%m-%d} ({actual_data_source}).")
     if clock.session in {"holiday", "weekend"}:
         reason = f" ({clock.holiday_name})" if clock.holiday_name else ""
         print(f"India market status: {clock.session}{reason}. Next trading day is {clock.next_trading_day}.")

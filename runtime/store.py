@@ -19,6 +19,7 @@ PAPER_BASE_HISTORY_PATH = CACHE_DIR / "paper_base_journal.jsonl"
 PAPER_SUMMARY_PATH = CACHE_DIR / "paper_trading_latest.json"
 PAPER_BASE_SUMMARY_PATH = CACHE_DIR / "paper_base_latest.json"
 PAPER_COMPARISON_PATH = CACHE_DIR / "paper_comparison_latest.json"
+PAPER_BENCHMARK_PATH = CACHE_DIR / "paper_benchmark_latest.json"
 LEARNING_STATE_PATH = CACHE_DIR / "learning_state.json"
 RAW_OVERLAY_PATH = CACHE_DIR / "anthropic_overlay_latest.json"
 EFFECTIVE_OVERLAY_PATH = CACHE_DIR / "active_overlay_latest.json"
@@ -29,6 +30,7 @@ EXECUTION_SUBMISSIONS_PATH = CACHE_DIR / "execution_submissions.jsonl"
 EXECUTION_SUBMISSIONS_LATEST_PATH = CACHE_DIR / "execution_submissions_latest.json"
 RECONCILIATION_PATH = CACHE_DIR / "reconciliation_latest.json"
 RECONCILIATION_HISTORY_PATH = CACHE_DIR / "reconciliation_history.jsonl"
+GROWW_AUTH_STATUS_PATH = CACHE_DIR / "groww_auth_status.json"
 
 
 def ensure_runtime_dir() -> None:

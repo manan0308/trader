@@ -1,0 +1,8 @@
+[Unit]
+Description=Trader Groww auth refresh
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/Users/mananagarwal/Desktop/2nd brain/plant to image/trader
+ExecStart=/bin/bash /Users/mananagarwal/Desktop/2nd brain/plant to image/trader/deploy/bin/run_groww_auth_refresh.sh

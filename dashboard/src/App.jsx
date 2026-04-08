@@ -13,11 +13,21 @@ const fmtInr = (value) =>
 const asObject = (value) => (value && typeof value === "object" && !Array.isArray(value) ? value : {});
 const asArray = (value) => (Array.isArray(value) ? value : []);
 const assetLabel = (value) => (value === "CASH" ? "LIQUIDBEES" : value === "US" ? "MON100" : value);
+const seriesLabel = (value) => {
+  if (value === "QUANT_ONLY") return "Quant only";
+  if (value === "QUANT_PLUS_LLM") return "Quant + LLM";
+  if (value === "BUY_HOLD_FIXED_MIX") return "Buy & Hold Fixed Mix";
+  if (value === "EQWT_RISKY") return "EqWt Risky (rebalanced)";
+  return assetLabel(value);
+};
 const rowDate = (row) => row?.date || row?.as_of || null;
 const pendingCount = (value, fallback = 0) => (Array.isArray(value) ? value.length : Number.isFinite(Number(value)) ? Number(value) : fallback);
 const SERIES_COLORS = {
-  PORTFOLIO_V9: "#0f766e",
-  EQWT_RISKY: "#b45309",
+  PORTFOLIO_V9: "#16a34a",
+  QUANT_ONLY: "#16a34a",
+  QUANT_PLUS_LLM: "#16a34a",
+  BUY_HOLD_FIXED_MIX: "#dc2626",
+  EQWT_RISKY: "#2563eb",
   NIFTY: "#2563eb",
   MIDCAP: "#7c3aed",
   SMALLCAP: "#db2777",
@@ -122,7 +132,7 @@ function LineChart({ rows, keys, colors = SERIES_COLORS, height = 260, valueForm
         {keys.map((key) => (
           <div key={key} className="legend-item">
             <span className="legend-swatch" style={{ background: colors[key] || "#0f766e" }} />
-            <span>{assetLabel(key)}</span>
+            <span>{seriesLabel(key)}</span>
           </div>
         ))}
       </div>
@@ -182,7 +192,7 @@ function StackedAreaChart({ rows, keys, colors = SERIES_COLORS, height = 260 }) 
         {keys.map((key) => (
           <div key={key} className="legend-item">
             <span className="legend-swatch" style={{ background: colors[key] || "#0f766e" }} />
-            <span>{assetLabel(key)}</span>
+            <span>{seriesLabel(key)}</span>
           </div>
         ))}
       </div>
@@ -291,7 +301,8 @@ export default function App() {
     };
   }, []);
 
-  const live = asObject(dashboard?.live_signal?.models);
+  const liveSignal = asObject(dashboard?.live_signal);
+  const live = asObject(liveSignal.models);
   const v9 = asObject(live.v9);
   const v9Rows = asArray(v9.rows);
   const latestV9Signal = v9Rows.length ? v9Rows[v9Rows.length - 1] : null;
@@ -304,6 +315,7 @@ export default function App() {
   const paperTrading = asObject(dashboard?.paper_trading);
   const paperBase = asObject(dashboard?.paper_base);
   const paperComparison = asObject(dashboard?.paper_comparison);
+  const paperBenchmark = asObject(dashboard?.paper_benchmark);
   const paperBackfill = asObject(dashboard?.paper_backfill);
   const auditRuns = asArray(dashboard?.audit_runs);
   const latestAudit = auditRuns.length ? auditRuns[auditRuns.length - 1] : {};
@@ -323,6 +335,7 @@ export default function App() {
     date: rowDate(row),
     PAPER_EQUITY: Number(row.equity),
   }));
+  const paperBenchmarkRows = asArray(paperBenchmark.rows);
   const validation = asObject(dashboard?.validation);
   const significance = asObject(dashboard?.significance);
   const analytics = asObject(validation.asset_portfolio);
@@ -332,6 +345,8 @@ export default function App() {
   const overlayCurrent = dashboard?.overlay_latest || null;
   const learningState = asObject(dashboard?.learning_state);
   const overlayPolicy = asObject(learningState.overlay_policy);
+  const growwAuth = asObject(dashboard?.groww_auth);
+  const signalDataSource = dashboard?.daily_cycle?.signal_data_source || liveSignal?.data_source || "—";
   const benchmarkRows = useMemo(() => asArray(dashboard?.benchmark_rows), [dashboard]);
   const otherModels = Object.values(live).filter((model) => model?.model && model.model !== "v9");
   const diagnosticsRows = asArray(analytics.diagnostics_rows);
@@ -340,6 +355,11 @@ export default function App() {
   const equityOverlayRows = asArray(analytics.equity_curve_overlay);
   const allocationHistoryRows = asArray(analytics.allocation_history);
   const diagnosticNames = diagnosticsRows.map((row) => row.name).filter(Boolean);
+  const equityOverlayKeys = [
+    "PORTFOLIO_V9",
+    analytics.benchmark_overlay || "EQWT_RISKY",
+    analytics.benchmark_secondary || "BUY_HOLD_FIXED_MIX",
+  ].filter((value, index, arr) => Boolean(value) && arr.indexOf(value) === index);
   const isLoading = !dashboard && !error;
 
   const tabs = [
@@ -399,7 +419,9 @@ export default function App() {
                     <div className="metric-grid metric-grid-main">
                       <Metric label="Latest bar" value={v9.latest_completed_bar || dashboard?.as_of || "—"} />
                       <Metric label="Next session" value={v9.actionable_for_next_session || marketClock.next_trading_day || "—"} />
+                      <Metric label="Signal source" value={String(signalDataSource).toUpperCase()} />
                       <Metric label="Market" value={marketClock.session || "—"} hint={marketClock.holiday_name || ""} />
+                      <Metric label="Groww auth" value={growwAuth.status === "ok" ? "Ready" : growwAuth.status === "error" ? "Error" : "Unknown"} hint={growwAuth.source || ""} />
                       <Metric label="Paper equity" value={`₹${fmtInr(paperSummary.total_equity || paperTrading.total_equity)}`} />
                       <Metric label="Net PnL" value={fmtSignedPct(paperSummary.return_since_start)} hint={`₹${fmtInr(paperSummary.net_pnl)}`} />
                       <Metric label="Queued paper fills" value={String(pendingCount(paperSummary.pending_orders, executionOrders.length || 0))} />
@@ -447,10 +469,14 @@ export default function App() {
                       <Card title="Paper account" subtitle="Current paper positions from the April 1 start">
                         <div className="metric-grid">
                           <Metric label="Start cash" value={`₹${fmtInr(paperBackfill.initial_cash || paperInitialEquity)}`} />
-                          <Metric label="Current cash" value={`₹${fmtInr(paperTrading.cash)}`} />
+                          <Metric label="Idle cash" value={`₹${fmtInr(paperTrading.cash)}`} />
                           <Metric label="Start date" value={paperStartDate} />
                           <Metric label="Last mark" value={paperEndDate} />
                         </div>
+                        <StatusNote tone="neutral">
+                          `Idle cash` means leftover rupees sitting uninvested after trades, rounding, and reserve cash.
+                          `LIQUIDBEES` is not included in this number because it is treated as a held asset, not free cash.
+                        </StatusNote>
                         <Table
                           rows={paperPositions}
                           columns={[
@@ -468,7 +494,7 @@ export default function App() {
                       <Card title="Portfolio value over time" subtitle={`V9 vs ${analytics.benchmark_overlay || "fixed benchmark"} from the honest analysis sample`}>
                         <LineChart
                           rows={equityOverlayRows}
-                          keys={["PORTFOLIO_V9", analytics.benchmark_overlay || "EQWT_RISKY"]}
+                          keys={equityOverlayKeys}
                           valueFormatter={(value) => `₹${fmtInr(value)}`}
                         />
                       </Card>
@@ -495,6 +521,10 @@ export default function App() {
                 </Card>
 
                 <Card title="Paper ledger" subtitle="Daily marks, holidays, and queued paper fills from April 1 onward">
+                  <StatusNote tone="neutral">
+                    `Idle cash` here is only the rupee balance left over in the book. The cash-like allocation held in
+                    `LIQUIDBEES` is part of positions and equity, so it does not appear in this column.
+                  </StatusNote>
                   <Table
                     rows={paperCurve.slice(-15).reverse()}
                     columns={[
@@ -502,7 +532,7 @@ export default function App() {
                       { key: "trading_day", label: "Trading", render: (row) => (row.trading_day === false ? "No" : "Yes") },
                       { key: "holiday_name", label: "Holiday" },
                       { key: "equity", label: "Equity", render: (row) => `₹${fmtInr(row.equity)}` },
-                      { key: "cash", label: "Cash", render: (row) => `₹${fmtInr(row.cash)}` },
+                      { key: "cash", label: "Idle cash", render: (row) => `₹${fmtInr(row.cash)}` },
                       { key: "pending_orders", label: "Queued fills", render: (row) => (Array.isArray(row.pending_orders) ? row.pending_orders.length : row.pending_orders ?? "—") },
                     ]}
                     empty="No paper curve yet."
@@ -522,20 +552,62 @@ export default function App() {
                   />
                 </Card>
 
-                <Card title="Base vs LLM shadow book" subtitle="Same model day, two separate paper paths: raw v9 vs v9 plus LLM overlay">
+                <Card title="Did The LLM Help?" subtitle="Two paper books are tracked side by side: quant only vs quant plus LLM">
                   <div className="metric-grid">
-                    <Metric label="Base equity" value={`₹${fmtInr(paperBase.total_equity)}`} />
-                    <Metric label="LLM equity" value={`₹${fmtInr(paperTrading.total_equity)}`} />
+                    <Metric label="Quant only" value={`₹${fmtInr(paperBase.total_equity)}`} />
+                    <Metric label="Quant + LLM" value={`₹${fmtInr(paperTrading.total_equity)}`} />
                     <Metric label="Equity delta" value={`₹${fmtInr(paperComparison.equity_delta)}`} />
-                    <Metric label="Base return" value={fmtSignedPct(paperBase.return_since_start)} />
-                    <Metric label="LLM return" value={fmtSignedPct(paperTrading.return_since_start)} />
-                    <Metric label="Return delta" value={fmtSignedPct(paperComparison.return_delta)} />
+                    <Metric label="Quant only return" value={fmtSignedPct(paperBase.return_since_start)} />
+                    <Metric label="Quant + LLM return" value={fmtSignedPct(paperTrading.return_since_start)} />
+                    <Metric label="LLM minus quant" value={fmtSignedPct(paperComparison.return_delta)} />
                   </div>
                   <StatusNote tone="neutral">
-                    This is the honest comparison path for deciding whether the LLM is helping. The live paper book is
-                    the LLM-adjusted side; the base book is raw `v9` without narrative changes.
+                    Read this as a scorecard. If `Quant + LLM` stays above `Quant only`, the overlay is helping. If it
+                    stays below, the overlay is hurting. The live paper book is the `Quant + LLM` side; `Quant only`
+                    is the same strategy with the LLM changes removed.
                   </StatusNote>
                 </Card>
+
+                <Card title="Current asset allocation" subtitle="Where the raw model and the live LLM-adjusted book differ right now">
+                  <div className="split">
+                    <Card title="Quant only" subtitle="Raw v9 target weights">
+                      <AllocationBars data={paperComparison.base_weights || paperBase.weights} />
+                    </Card>
+                    <Card title="Quant + LLM" subtitle="Live target after the narrative overlay">
+                      <AllocationBars data={paperComparison.llm_weights || paperTrading.weights} />
+                    </Card>
+                  </div>
+                </Card>
+
+                <div className="split">
+                  <Card
+                    title="Quant only vs both benchmarks"
+                    subtitle="Live paper path from April 1 onward: raw v9 against the rebalanced and passive benchmark views"
+                  >
+                    <StatusNote tone="neutral">
+                      `EqWt Risky (rebalanced)` resets the risky sleeves back to equal weight. `Buy & Hold Fixed Mix`
+                      buys the same risky mix once and then leaves it alone.
+                    </StatusNote>
+                    <LineChart
+                      rows={paperBenchmarkRows}
+                      keys={["QUANT_ONLY", "EQWT_RISKY", "BUY_HOLD_FIXED_MIX"]}
+                      colors={SERIES_COLORS}
+                      valueFormatter={(value) => `₹${fmtInr(value)}`}
+                    />
+                  </Card>
+
+                  <Card
+                    title="Quant + LLM vs both benchmarks"
+                    subtitle="Live paper path from April 1 onward: the actual overlay-adjusted book against the same two baselines"
+                  >
+                    <LineChart
+                      rows={paperBenchmarkRows}
+                      keys={["QUANT_PLUS_LLM", "EQWT_RISKY", "BUY_HOLD_FIXED_MIX"]}
+                      colors={SERIES_COLORS}
+                      valueFormatter={(value) => `₹${fmtInr(value)}`}
+                    />
+                  </Card>
+                </div>
               </div>
             ) : null}
 
@@ -637,6 +709,9 @@ export default function App() {
                           { key: "sharpe", label: "Sharpe", render: (row) => fmtFloat(row.sharpe) },
                           { key: "sharpe_t_stat", label: "t-stat", render: (row) => fmtFloat(row.sharpe_t_stat) },
                           { key: "sharpe_p_value", label: "p", render: (row) => fmtFloat(row.sharpe_p_value, 4) },
+                          { key: "expanding_sharpe_latest", label: "Exp SR (last)", render: (row) => fmtFloat(row.expanding_sharpe_latest) },
+                          { key: "rolling_sharpe_latest", label: "Roll SR (last)", render: (row) => fmtFloat(row.rolling_sharpe_latest) },
+                          { key: "rolling_sharpe_std", label: "Roll SR σ", render: (row) => fmtFloat(row.rolling_sharpe_std) },
                           { key: "skewness", label: "Skew", render: (row) => fmtFloat(row.skewness) },
                           { key: "kurtosis", label: "Kurtosis", render: (row) => fmtFloat(row.kurtosis) },
                           { key: "fat_tails", label: "Fat tails", render: (row) => (row.fat_tails ? "Yes" : "No") },
@@ -672,7 +747,7 @@ export default function App() {
                     <Card title="Portfolio value over time" subtitle={`V9 vs ${analytics.benchmark_overlay || "fixed benchmark"} on the honest stitched OOS sample`}>
                       <LineChart
                         rows={equityOverlayRows}
-                        keys={["PORTFOLIO_V9", analytics.benchmark_overlay || "EQWT_RISKY"]}
+                        keys={equityOverlayKeys}
                         valueFormatter={(value) => `₹${fmtInr(value)}`}
                       />
                     </Card>
@@ -743,13 +818,29 @@ export default function App() {
                 <Card title="How this runs" subtitle="Simple operating model">
                   <div className="metric-grid">
                     <Metric label="Dashboard" value="Always-on local server" />
-                    <Metric label="Daily cycle" value="16:05 IST" />
+                    <Metric label="Daily cycle" value="18:45 IST" />
+                    <Metric label="Signal source" value={String(signalDataSource).toUpperCase()} />
                     <Metric label="Market logic" value="India holiday aware" />
-                    <Metric label="Machine need" value="Mac awake or always-on host" />
+                    <Metric label="Groww auth" value={growwAuth.status === "ok" ? "Ready" : growwAuth.status === "error" ? "Error" : "Unknown"} hint={growwAuth.updated_at || ""} />
                   </div>
                   <StatusNote tone="neutral">
                     If your laptop sleeps or shuts down, scheduled jobs stop. For true 24/7 operation, run this exact
                     setup on a Mac mini, home server, or VPS.
+                  </StatusNote>
+                </Card>
+
+                <Card title="Groww bootstrap" subtitle="Morning broker-auth refresh for the VPS">
+                  <div className="metric-grid">
+                    <Metric label="Source" value={growwAuth.source || "—"} />
+                    <Metric label="Public IP" value={growwAuth.public_ipv4 || "—"} />
+                    <Metric label="Expiry hint" value={growwAuth.assumed_token_expiry_ist || "—"} />
+                    <Metric label="Next refresh" value={growwAuth.recommended_refresh_ist || "—"} />
+                  </div>
+                  <CodeBlock>{`./.venv/bin/python -m runtime.groww_auth_refresh`}</CodeBlock>
+                  <StatusNote tone={growwAuth.status === "ok" ? "accent" : "neutral"}>
+                    {growwAuth.status === "ok"
+                      ? "Groww auth is valid and the latest broker token was written to config/runtime.env."
+                      : "Groww auth has not been refreshed successfully yet. Set Groww credentials in config/local.env on the VPS and run the refresh command."}
                   </StatusNote>
                 </Card>
 

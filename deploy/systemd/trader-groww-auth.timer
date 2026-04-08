@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh Groww broker auth before market open
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 08:35:00 Asia/Kolkata
+Persistent=true
+Unit=trader-groww-auth.service
+
+[Install]
+WantedBy=timers.target

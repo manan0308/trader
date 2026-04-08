@@ -43,6 +43,7 @@ ARTIFACTS = {
     "paper_backfill": "paper_backfill_latest.json",
     "audit_runs": "audit_runs_latest.json",
     "daily_cycle": "daily_cycle_latest.json",
+    "groww_auth": "groww_auth_status.json",
     "execution_submissions": "execution_submissions_latest.json",
     "reconciliation": "reconciliation_latest.json",
     "execution_confirmation": "execution_confirmation_latest.json",

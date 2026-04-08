@@ -18,6 +18,8 @@ cd "$TRADER_ROOT"
 ./.venv/bin/python -m runtime.daily_cycle --portfolio-file config/portfolio_state.example.json
 ```
 
+By default the live daily cycle now prefers `Groww` for the signal/execution path when broker auth is healthy, and falls back to `yfinance` otherwise.
+
 Use `--skip-overlay` to avoid Anthropic calls:
 
 ```bash
@@ -28,6 +30,31 @@ Reset paper, audit, and learning state:
 
 ```bash
 ./.venv/bin/python -m runtime.daily_cycle --skip-overlay --reset-state --portfolio-file config/portfolio_state.example.json
+```
+
+## Groww auth bootstrap
+
+Groww broker auth is treated as a morning bootstrap step on the VPS. The clean path is:
+
+1. whitelist the VPS public static IPv4 with Groww
+2. set `GROWW_API_KEY` plus either `GROWW_TOTP_SECRET` or `GROWW_API_SECRET`
+3. refresh the broker token before market open
+
+Manual refresh:
+
+```bash
+./.venv/bin/python -m runtime.groww_auth_refresh
+```
+
+This writes:
+
+- `config/runtime.env` with the fresh access token
+- `cache/groww_auth_status.json` for the API and dashboard
+
+Check broker auth status:
+
+```bash
+cat cache/groww_auth_status.json
 ```
 
 ## Exact weights on any date
@@ -148,7 +175,7 @@ chmod +x deploy/bin/install_launchd.sh deploy/bin/uninstall_launchd.sh
 This enables:
 
 - `com.trader.dashboard`: always-on local dashboard/API server on `127.0.0.1:8050`
-- `com.trader.daily-cycle`: scheduled run at `16:05` IST every day
+- `com.trader.daily-cycle`: scheduled run at `18:45` IST every trading day
 
 View status:
 
@@ -170,4 +197,10 @@ Install the service files from `deploy/systemd/` into `~/.config/systemd/user/` 
 systemctl --user daemon-reload
 systemctl --user enable --now trader-dashboard.service
 systemctl --user enable --now trader-daily-cycle.timer
+systemctl --user enable --now trader-groww-auth.timer
 ```
+
+Recommended cadence:
+
+- `trader-groww-auth.timer`: `08:35 IST`
+- `trader-daily-cycle.timer`: `18:45 IST`

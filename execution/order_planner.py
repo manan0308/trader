@@ -109,8 +109,15 @@ def main() -> None:
     if args.data_source == "groww" or args.groww_live:
         groww_session = GrowwSession.from_env(instrument_map=instruments, cache_dir=CACHE_DIR)
 
+    data_source_used = args.data_source
+    data_source_fallback_reason = None
     if args.data_source == "groww":
-        prices = GrowwSource(groww_session).fetch(args.start, refresh=args.refresh_cache)  # type: ignore[arg-type]
+        try:
+            prices = GrowwSource(groww_session).fetch(args.start, refresh=args.refresh_cache)  # type: ignore[arg-type]
+        except Exception as exc:
+            prices = YahooFinanceSource(universe_mode=args.universe_mode).fetch(args.start, refresh=args.refresh_cache)
+            data_source_used = "yfinance"
+            data_source_fallback_reason = f"{type(exc).__name__}: {exc}"
     else:
         prices = YahooFinanceSource(universe_mode=args.universe_mode).fetch(args.start, refresh=args.refresh_cache)
 
@@ -153,7 +160,9 @@ def main() -> None:
     payload = {
         "as_of": prices.index[-1].strftime("%Y-%m-%d"),
         "plan_key": plan_key,
-        "data_source": args.data_source,
+        "data_source": data_source_used,
+        "requested_data_source": args.data_source,
+        "data_source_fallback_reason": data_source_fallback_reason,
         "universe_mode": args.universe_mode,
         "groww_universe_file": args.groww_universe_file or str(PRODUCTION_GROWW_UNIVERSE_PATH),
         "broker_map": {

@@ -3,6 +3,9 @@ from __future__ import annotations
 import json
 import os
 import time
+import base64
+import hashlib
+import hmac
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, Optional
@@ -23,6 +26,8 @@ GROWW_MAX_DAY_CHUNK = 180
 GROWW_API_KEY_ENV = "GROWW_API_KEY"
 GROWW_API_SECRET_ENV = "GROWW_API_SECRET"
 GROWW_ACCESS_TOKEN_ENV = "GROWW_ACCESS_TOKEN"
+GROWW_TOTP_SECRET_ENV = "GROWW_TOTP_SECRET"
+GROWW_TOTP_CODE_ENV = "GROWW_TOTP_CODE"
 
 
 @dataclass(frozen=True)
@@ -126,12 +131,29 @@ class GrowwSession:
         if not access_token:
             api_key = os.getenv(GROWW_API_KEY_ENV)
             api_secret = os.getenv(GROWW_API_SECRET_ENV)
-            if not api_key or not api_secret:
+            totp_secret = os.getenv(GROWW_TOTP_SECRET_ENV)
+            totp_code = os.getenv(GROWW_TOTP_CODE_ENV)
+            if not api_key or (not api_secret and not totp_secret and not totp_code):
                 raise RuntimeError(
                     "Missing Groww credentials. Set either GROWW_ACCESS_TOKEN or "
-                    "both GROWW_API_KEY and GROWW_API_SECRET."
+                    "GROWW_API_KEY plus one of GROWW_API_SECRET, GROWW_TOTP_SECRET, or GROWW_TOTP_CODE."
                 )
-            access_token = GrowwAPI.get_access_token(api_key=api_key, secret=api_secret)
+            if totp_secret or totp_code:
+                access_token = GrowwAPI.get_access_token(
+                    api_key=api_key,
+                    totp=totp_code or generate_totp_code(totp_secret or ""),
+                )
+            else:
+                access_token = GrowwAPI.get_access_token(api_key=api_key, secret=api_secret)
+            if isinstance(access_token, dict):
+                access_token = str(
+                    access_token.get("access_token")
+                    or access_token.get("token")
+                    or access_token.get("jwtToken")
+                    or ""
+                )
+            if not access_token:
+                raise RuntimeError("Groww returned an empty access token.")
         return cls(access_token=access_token, instrument_map=instrument_map, cache_dir=cache_dir)
 
     def smoke_test(self) -> Dict[str, object]:
@@ -274,3 +296,23 @@ class GrowwSession:
             f"Historical fetch failed for {instrument.asset} "
             f"({instrument.trading_symbol}) after retries: {last_error}"
         )
+
+
+def generate_totp_code(secret: str, *, digits: int = 6, interval_seconds: int = 30, for_time: int | None = None) -> str:
+    """
+    Generate a standard RFC 6238 TOTP code from a base32 secret.
+
+    This keeps the broker bootstrap flow dependency-light: we do not need a
+    separate ``pyotp`` dependency just to mint the daily Groww auth code.
+    """
+    normalized = secret.strip().replace(" ", "").upper()
+    if not normalized:
+        raise RuntimeError("Missing Groww TOTP secret.")
+    padding = "=" * ((8 - len(normalized) % 8) % 8)
+    key = base64.b32decode(normalized + padding, casefold=True)
+    timestamp = int(for_time or time.time())
+    counter = timestamp // interval_seconds
+    digest = hmac.new(key, counter.to_bytes(8, "big"), hashlib.sha1).digest()
+    offset = digest[-1] & 0x0F
+    code = (int.from_bytes(digest[offset : offset + 4], "big") & 0x7FFFFFFF) % (10**digits)
+    return str(code).zfill(digits)

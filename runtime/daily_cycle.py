@@ -36,8 +36,12 @@ from strategy.v9_engine import (
     CACHE_DIR,
     DEFAULT_BACKTEST_START,
     DEFAULT_TX,
+    GrowwSource,
+    RISKY,
     YahooFinanceSource,
+    benchmark_weights,
     load_llm_overlay,
+    portfolio_returns,
     run_strategy,
     schedule_flags,
 )
@@ -69,7 +73,7 @@ from events.structured_event_store import (
     attach_structured_context,
     refresh_structured_event_store,
 )
-from broker.groww_client import PRODUCTION_GROWW_UNIVERSE_PATH
+from broker.groww_client import PRODUCTION_GROWW_UNIVERSE_PATH, GrowwSession, load_production_groww_universe
 from runtime.india_market_calendar import market_clock
 from runtime.paper_ledger import (
     BASELINE_PAPER_PATHS,
@@ -82,7 +86,9 @@ from runtime.paper_ledger import (
 from runtime.env_loader import load_runtime_env
 from runtime.store import (
     EXECUTION_PLAN_BASE_PATH,
+    GROWW_AUTH_STATUS_PATH,
     PAPER_BASE_HISTORY_PATH,
+    PAPER_BENCHMARK_PATH,
     PAPER_BASE_STATE_PATH,
     PAPER_BASE_SUMMARY_PATH,
     PAPER_COMPARISON_PATH,
@@ -132,13 +138,80 @@ def latest_v9_weights(prices: pd.DataFrame, overlay_path: Path | None) -> Dict[s
     return {asset: float(weights.iloc[-1][asset]) for asset in weights.columns}
 
 
+def build_groww_session(groww_universe_file: str | None = None) -> GrowwSession:
+    instruments = load_production_groww_universe(groww_universe_file)
+    return GrowwSession.from_env(instrument_map=instruments, cache_dir=CACHE_DIR)
+
+
+def groww_auth_ready(groww_universe_file: str | None = None, *, purpose: str = "signal") -> bool:
+    status = load_json(GROWW_AUTH_STATUS_PATH, default={})
+    if isinstance(status, dict) and str(status.get("status", "")).lower() == "ok":
+        if not bool(status.get("smoke_test_ok", False)):
+            return False
+        if purpose == "signal" and not bool(status.get("historical_candles_ok", False)):
+            return False
+        expiry = status.get("assumed_token_expiry_ist")
+        if expiry:
+            try:
+                expiry_dt = datetime.fromisoformat(str(expiry))
+                if expiry_dt > datetime.now(tz=expiry_dt.tzinfo):
+                    return True
+            except Exception:
+                return True
+        else:
+            return True
+    return False
+
+
+def resolve_runtime_data_source(
+    requested: str,
+    *,
+    groww_universe_file: str | None = None,
+    purpose: str = "signal",
+) -> str:
+    if requested in {"yfinance", "groww"}:
+        return requested
+    return "groww" if groww_auth_ready(groww_universe_file, purpose=purpose) else "yfinance"
+
+
+def fetch_prices_for_runtime(
+    *,
+    start: str,
+    refresh: bool,
+    data_source: str,
+    universe_mode: str,
+    groww_universe_file: str | None = None,
+) -> pd.DataFrame:
+    if data_source == "groww":
+        try:
+            prices = GrowwSource(build_groww_session(groww_universe_file)).fetch(start=start, refresh=refresh)
+            prices.attrs["data_source_actual"] = "groww"
+            return prices
+        except Exception as exc:
+            prices = YahooFinanceSource(universe_mode=universe_mode).fetch(start, refresh=refresh)
+            prices.attrs["data_source_actual"] = "yfinance"
+            prices.attrs["data_source_fallback_reason"] = f"{type(exc).__name__}: {exc}"
+            return prices
+    prices = YahooFinanceSource(universe_mode=universe_mode).fetch(start, refresh=refresh)
+    prices.attrs["data_source_actual"] = "yfinance"
+    return prices
+
+
 def export_llm_packet(
     start: str,
     refresh: bool,
     packet_path: Path,
     overlay_path: Path | None = None,
+    data_source: str = "yfinance",
+    groww_universe_file: str | None = None,
 ) -> pd.DataFrame:
-    prices = YahooFinanceSource(universe_mode="benchmark").fetch(start, refresh=refresh)
+    prices = fetch_prices_for_runtime(
+        start=start,
+        refresh=refresh,
+        data_source=data_source,
+        universe_mode="benchmark",
+        groww_universe_file=groww_universe_file,
+    )
     macro = fetch_macro_panel(prices.index[0].strftime("%Y-%m-%d"), refresh=refresh)
     overlay = load_llm_overlay(str(overlay_path), prices.index) if overlay_path and overlay_path.exists() else None
 
@@ -190,6 +263,120 @@ def ensure_noop_overlay(path: Path) -> dict:
     payload = {"default_risk_off_override": 0.0, "dates": []}
     write_json(path, payload)
     return payload
+
+
+def buy_hold_fixed_mix_equity(
+    prices: pd.DataFrame,
+    weights: Dict[str, float],
+    common_dates: pd.DatetimeIndex,
+    *,
+    base_value: float,
+) -> pd.Series:
+    safe_weights = {
+        asset: float(weight)
+        for asset, weight in weights.items()
+        if asset in prices.columns and weight > 0.0
+    }
+    if not safe_weights or len(common_dates) == 0:
+        return pd.Series(dtype=float)
+
+    first = prices.loc[common_dates[0], list(safe_weights.keys())]
+    units = {
+        asset: (base_value * weight) / float(first[asset])
+        for asset, weight in safe_weights.items()
+        if float(first[asset]) > 0
+    }
+    if not units:
+        return pd.Series(dtype=float)
+
+    equity = pd.Series(0.0, index=common_dates, dtype=float)
+    for asset, qty in units.items():
+        equity = equity.add(prices.loc[common_dates, asset] * qty, fill_value=0.0)
+    return equity
+
+
+def rebalanced_equity_curve(
+    prices: pd.DataFrame,
+    *,
+    base_value: float,
+    tx_cost: float,
+) -> pd.Series:
+    if prices.empty:
+        return pd.Series(dtype=float)
+    weights = benchmark_weights(prices, "EqWt Risky")
+    returns = portfolio_returns(prices, weights, tx_cost=tx_cost)
+    if returns.empty:
+        return pd.Series({prices.index[0]: base_value}, dtype=float)
+    equity = base_value * (1.0 + returns).cumprod()
+    first_row = pd.Series([base_value], index=pd.DatetimeIndex([prices.index[0]]), dtype=float)
+    return pd.concat([first_row, equity]).sort_index()
+
+
+def build_paper_benchmark_payload(
+    *,
+    base_paper_summary: dict,
+    llm_paper_summary: dict,
+    prices: pd.DataFrame,
+    tx_cost: float,
+) -> dict:
+    base_history = list(base_paper_summary.get("equity_curve") or base_paper_summary.get("history") or [])
+    llm_history = list(llm_paper_summary.get("equity_curve") or llm_paper_summary.get("history") or [])
+    merged_rows: Dict[str, dict] = {}
+
+    for row in base_history:
+        as_of = str(row.get("as_of", "")).strip()
+        if not as_of:
+            continue
+        merged_rows.setdefault(as_of, {"date": as_of})
+        merged_rows[as_of]["QUANT_ONLY"] = float(row.get("equity", 0.0))
+
+    for row in llm_history:
+        as_of = str(row.get("as_of", "")).strip()
+        if not as_of:
+            continue
+        merged_rows.setdefault(as_of, {"date": as_of})
+        merged_rows[as_of]["QUANT_PLUS_LLM"] = float(row.get("equity", 0.0))
+
+    if not merged_rows:
+        return {"rows": []}
+
+    rows = [merged_rows[key] for key in sorted(merged_rows)]
+    paper_dates = pd.DatetimeIndex(pd.to_datetime([row["date"] for row in rows]))
+    common_dates = prices.index.intersection(paper_dates)
+    if len(common_dates) == 0:
+        return {"rows": rows}
+
+    base_value = None
+    for row in rows:
+        if row["date"] == common_dates[0].strftime("%Y-%m-%d"):
+            base_value = float(row.get("QUANT_ONLY") or row.get("QUANT_PLUS_LLM") or 0.0)
+            break
+    if not base_value:
+        history = list(base_paper_summary.get("history") or [])
+        base_value = float(history[0].get("equity", 1_000_000.0)) if history else 1_000_000.0
+
+    price_subset = prices.loc[common_dates]
+    eqwt_equity = rebalanced_equity_curve(price_subset, base_value=base_value, tx_cost=tx_cost)
+    buy_hold_weights = {asset: 1.0 / len(RISKY) for asset in RISKY}
+    buy_hold_equity = buy_hold_fixed_mix_equity(price_subset, buy_hold_weights, common_dates, base_value=base_value)
+
+    eqwt_map = {pd.Timestamp(idx).strftime("%Y-%m-%d"): float(value) for idx, value in eqwt_equity.items()}
+    buy_hold_map = {pd.Timestamp(idx).strftime("%Y-%m-%d"): float(value) for idx, value in buy_hold_equity.items()}
+    for row in rows:
+        date = row["date"]
+        if date in eqwt_map:
+            row["EQWT_RISKY"] = eqwt_map[date]
+        if date in buy_hold_map:
+            row["BUY_HOLD_FIXED_MIX"] = buy_hold_map[date]
+
+    return {
+        "base_value": base_value,
+        "start": rows[0]["date"],
+        "end": rows[-1]["date"],
+        "benchmark_overlay": "EQWT_RISKY",
+        "benchmark_secondary": "BUY_HOLD_FIXED_MIX",
+        "rows": rows,
+    }
 
 
 def overlay_env_available() -> bool:
@@ -277,7 +464,8 @@ def main() -> None:
     parser.add_argument("--groww-live", action="store_true")
     parser.add_argument("--cash", type=float, default=0.0)
     parser.add_argument("--groww-universe-file")
-    parser.add_argument("--execution-data-source", choices=["yfinance", "groww"], default="yfinance")
+    parser.add_argument("--signal-data-source", choices=["auto", "yfinance", "groww"], default="auto")
+    parser.add_argument("--execution-data-source", choices=["auto", "yfinance", "groww"], default="auto")
     parser.add_argument("--days", type=int, default=5)
     parser.add_argument("--paper-initial-cash", type=float, default=1_000_000.0)
     parser.add_argument("--reset-paper", action="store_true")
@@ -333,17 +521,54 @@ def main() -> None:
             packet_overlay_path = ACTIVE_OVERLAY_PATH
         elif source_overlay_path.exists():
             packet_overlay_path = source_overlay_path
+    effective_refresh_cache = bool(args.refresh_cache)
+    signal_data_source = resolve_runtime_data_source(
+        args.signal_data_source,
+        groww_universe_file=args.groww_universe_file,
+        purpose="signal",
+    )
+    execution_data_source = resolve_runtime_data_source(
+        args.execution_data_source,
+        groww_universe_file=args.groww_universe_file,
+        purpose="execution",
+    )
+
     benchmark_prices = export_llm_packet(
         start=args.benchmark_start,
-        refresh=args.refresh_cache,
+        refresh=effective_refresh_cache,
         packet_path=packet_path,
         overlay_path=packet_overlay_path,
+        data_source=signal_data_source,
+        groww_universe_file=args.groww_universe_file,
     )
-    packet_payload, event_store = enrich_packet_context(packet_path, refresh=args.refresh_cache)
+    signal_data_source_used = benchmark_prices.attrs.get("data_source_actual", signal_data_source)
+    signal_fallback_reason = benchmark_prices.attrs.get("data_source_fallback_reason")
+    packet_payload, event_store = enrich_packet_context(packet_path, refresh=effective_refresh_cache)
     clock = market_clock()
     latest_bar_day = benchmark_prices.index[-1].date().isoformat()
     skip_execution = latest_bar_day != clock.today
     skip_reason = None
+    if (
+        skip_execution
+        and clock.is_trading_day
+        and clock.session == "after_close"
+        and not effective_refresh_cache
+    ):
+        benchmark_prices = export_llm_packet(
+            start=args.benchmark_start,
+            refresh=True,
+            packet_path=packet_path,
+            overlay_path=packet_overlay_path,
+            data_source=signal_data_source,
+            groww_universe_file=args.groww_universe_file,
+        )
+        signal_data_source_used = benchmark_prices.attrs.get("data_source_actual", signal_data_source_used)
+        signal_fallback_reason = benchmark_prices.attrs.get("data_source_fallback_reason", signal_fallback_reason)
+        effective_refresh_cache = True
+        packet_payload, event_store = enrich_packet_context(packet_path, refresh=True)
+        latest_bar_day = benchmark_prices.index[-1].date().isoformat()
+        skip_execution = latest_bar_day != clock.today
+
     if skip_execution:
         if not clock.is_trading_day:
             skip_reason = f"market_closed:{clock.session}:{clock.holiday_name or 'non_trading_day'}"
@@ -451,10 +676,14 @@ def main() -> None:
         str(args.days),
         "--universe-mode",
         "benchmark",
+        "--data-source",
+        signal_data_source_used,
         "--llm-override-file",
         str(ACTIVE_OVERLAY_PATH),
     ]
-    if args.refresh_cache:
+    if args.groww_universe_file:
+        live_cmd.extend(["--groww-universe-file", args.groww_universe_file])
+    if effective_refresh_cache:
         live_cmd.append("--refresh-cache")
     run_cmd(live_cmd, cwd=BASE_DIR)
 
@@ -467,24 +696,24 @@ def main() -> None:
 
     base_execution_payload = run_execution_plan(
         execution_start=args.execution_start,
-        execution_data_source=args.execution_data_source,
+        execution_data_source=execution_data_source,
         llm_override_path=None,
         cash=args.cash,
         portfolio_file=args.portfolio_file,
         groww_live=args.groww_live,
         groww_universe_file=args.groww_universe_file,
-        refresh_cache=args.refresh_cache,
+        refresh_cache=effective_refresh_cache,
         output_path=EXECUTION_PLAN_BASE_PATH,
     )
     execution_payload = run_execution_plan(
         execution_start=args.execution_start,
-        execution_data_source=args.execution_data_source,
+        execution_data_source=execution_data_source,
         llm_override_path=ACTIVE_OVERLAY_PATH,
         cash=args.cash,
         portfolio_file=args.portfolio_file,
         groww_live=args.groww_live,
         groww_universe_file=args.groww_universe_file,
-        refresh_cache=args.refresh_cache,
+        refresh_cache=effective_refresh_cache,
         output_path=CACHE_DIR / "execution_plan_latest.json",
     )
 
@@ -501,7 +730,15 @@ def main() -> None:
             write_json(output_path, payload)
 
     final_v9_weights = latest_weights_from_overlay_payload(benchmark_prices, BASE_V9, overlay_payload=active_overlay)
-    tradable_prices = YahooFinanceSource(universe_mode="tradable").fetch(args.execution_start, refresh=False)
+    tradable_prices = fetch_prices_for_runtime(
+        start=args.execution_start,
+        refresh=effective_refresh_cache,
+        data_source=execution_data_source,
+        universe_mode="tradable",
+        groww_universe_file=args.groww_universe_file,
+    )
+    execution_data_source_used = tradable_prices.attrs.get("data_source_actual", execution_data_source)
+    execution_fallback_reason = tradable_prices.attrs.get("data_source_fallback_reason")
     if skip_execution:
         paper_summary = load_json(PAPER_LATEST_PATH, default={})
         if not paper_summary:
@@ -556,6 +793,14 @@ def main() -> None:
         "llm_weights": final_v9_weights,
     }
     write_json(PAPER_COMPARISON_PATH, paper_comparison)
+    paper_benchmark = build_paper_benchmark_payload(
+        base_paper_summary=base_paper_summary,
+        llm_paper_summary=paper_summary,
+        prices=tradable_prices,
+        tx_cost=DEFAULT_TX,
+    )
+    paper_benchmark["as_of"] = signal_as_of
+    write_json(PAPER_BENCHMARK_PATH, paper_benchmark)
     overlay_meta = {
         "raw_active": overlay_is_active(raw_overlay),
         "policy_active": overlay_is_active(policy_overlay),
@@ -641,14 +886,6 @@ def main() -> None:
     audit_runs = upsert_audit_run(record)
     learning_state = update_learning_state(benchmark_prices, audit_runs, state=prior_learning)
 
-    node_bin = find_node_binary()
-    if node_bin:
-        run_cmd([node_bin, str(BASE_DIR / "dashboard" / "scripts" / "sync-data.mjs")], cwd=BASE_DIR)
-    if args.build_dashboard:
-        if not shutil.which("npm"):
-            raise RuntimeError("npm is required for --build-dashboard")
-        run_cmd(["npm", "run", "build"], cwd=BASE_DIR / "dashboard")
-
     latest = {
         "ran_at": datetime.now().astimezone().isoformat(),
         "run_key": record["run_key"],
@@ -665,11 +902,18 @@ def main() -> None:
         "paper_path": str(PAPER_LATEST_PATH),
         "paper_base_path": str(PAPER_BASE_SUMMARY_PATH),
         "paper_comparison_path": str(PAPER_COMPARISON_PATH),
+        "paper_benchmark_path": str(PAPER_BENCHMARK_PATH),
         "execution_plan_base_path": str(EXECUTION_PLAN_BASE_PATH),
         "audit_path": str(AUDIT_LATEST_PATH),
         "dashboard_path": str(BASE_DIR / "dashboard" / "public" / "data" / "dashboard.json"),
         "build_dashboard": bool(args.build_dashboard),
-        "execution_data_source": args.execution_data_source,
+        "signal_data_source": live_payload.get("data_source") or signal_data_source_used,
+        "execution_data_source": execution_payload.get("data_source") or execution_data_source_used,
+        "signal_data_source_requested": signal_data_source,
+        "execution_data_source_requested": execution_data_source,
+        "signal_data_source_fallback_reason": signal_fallback_reason,
+        "execution_data_source_fallback_reason": execution_fallback_reason,
+        "refresh_cache": effective_refresh_cache,
         "groww_live": bool(args.groww_live),
         "market_closed_skip": skip_execution,
         "skip_reason": skip_reason,
@@ -680,6 +924,15 @@ def main() -> None:
         "critic_used": bool(critic_meta.get("critic_used", False)),
     }
     write_json(LATEST_RUN_PATH, latest)
+
+    node_bin = find_node_binary()
+    if node_bin:
+        run_cmd([node_bin, str(BASE_DIR / "dashboard" / "scripts" / "sync-data.mjs")], cwd=BASE_DIR)
+    if args.build_dashboard:
+        if not shutil.which("npm"):
+            raise RuntimeError("npm is required for --build-dashboard")
+        run_cmd(["npm", "run", "build"], cwd=BASE_DIR / "dashboard")
+
     print(json.dumps(latest, indent=2))
 
 

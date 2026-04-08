@@ -7,4 +7,4 @@ LOG_DIR="$REPO/cache/logs"
 mkdir -p "$LOG_DIR"
 
 cd "$REPO"
-exec "$REPO/.venv/bin/python" -m runtime.daily_cycle --portfolio-file config/portfolio_state.example.json >> "$LOG_DIR/daily_cycle.log" 2>&1
+exec "$REPO/.venv/bin/python" -m runtime.daily_cycle --refresh-cache --portfolio-file config/portfolio_state.example.json >> "$LOG_DIR/daily_cycle.log" 2>&1
