@@ -28,7 +28,9 @@ trader/
 ├── market_data/            # offline market data store and ingest tools
 ├── events/                 # structured event store for LLM context
 ├── broker/                 # Groww client and universe loading
-├── research/               # Experimental branches and research scripts
+├── research/               # Preserved challenger models and search scripts
+├── strategy_library/       # Curated map of the strategies we actively keep
+├── dhan_cloud/             # Single-file Dhan-friendly strategy runners
 ├── dashboard/              # React monitoring UI
 ├── deploy/                 # launchd, systemd, nginx-friendly scripts
 ├── config/                 # prompts, broker maps, example portfolios, local overrides
@@ -64,7 +66,7 @@ flowchart LR
 The main daily operator command is:
 
 ```bash
-./.venv/bin/python -m runtime.daily_cycle --portfolio-file config/portfolio_state.example.json
+python3 -m runtime.daily_cycle --portfolio-file config/portfolio_state.example.json
 ```
 
 That command runs the full daily workflow end to end.
@@ -94,6 +96,32 @@ flowchart TD
     Q --> R
     R --> S["Validation snapshots + dashboard data"]
 ```
+
+## Curated Strategy Set
+
+The repo now has a curated strategy map in:
+
+- [strategy_library/README.md](strategy_library/README.md)
+- [strategy_library/manifest.json](strategy_library/manifest.json)
+
+These are the seven named strategies we are intentionally keeping visible after cleanup:
+
+- `steady_core_v9`
+  - raw production `v9`
+- `surge_rotation_blend`
+  - `70% v9 + 30% momentum`
+- `pullback_guard_blend`
+  - `70% v9 + 30% pullback`
+- `polaris_etf_blend`
+  - the fixed shiny `v20` ETF blend
+- `volume_pulse_weekly`
+  - weekly slowed `mom10 x relative-volume` rotation
+- `flow_pulse_weekly`
+  - weekly slowed `OBV` rotation
+- `atlas_jpm_blend`
+  - current best JPM-inspired blend of `v9`, scorecard momentum, and diversified trend following
+
+That curated layer is there so the production stack stays understandable even while the `research/` folder still holds the code needed to reconstruct those blends and challengers.
 
 ## How `v9` Works
 
@@ -271,11 +299,11 @@ Analytics live in:
 - [analytics/significance_report.py](analytics/significance_report.py)
 - [analytics/validation_report.py](analytics/validation_report.py)
 
-Research branches live in:
+Preserved research branches live in:
 
 - [research](research)
 
-Those scripts contain challenger models and portability experiments, but the production decision path is still `v9`.
+Those scripts now contain only the challenger models and search tooling we chose to keep after cleanup. Older discarded paths were removed so the folder is closer to the real active research surface.
 
 The validation pack is where you look for:
 
@@ -321,26 +349,26 @@ From the repo root:
 ### Main daily run
 
 ```bash
-./.venv/bin/python -m runtime.daily_cycle --portfolio-file config/portfolio_state.example.json
+python3 -m runtime.daily_cycle --portfolio-file config/portfolio_state.example.json
 ```
 
 ### Exact model weights on a date
 
 ```bash
-./.venv/bin/python -m runtime.weights_on_date --model v9 --date 2026-04-02 --json
+python3 -m runtime.weights_on_date --model v9 --date 2026-04-02 --json
 ```
 
 ### Build execution plan only
 
 ```bash
-./.venv/bin/python -m execution.order_planner --portfolio-file config/portfolio_state.example.json
+python3 -m execution.order_planner --portfolio-file config/portfolio_state.example.json
 ```
 
 ### Validation
 
 ```bash
-./.venv/bin/python -m analytics.significance_report
-./.venv/bin/python -m analytics.validation_report
+python3 -m analytics.significance_report
+python3 -m analytics.validation_report
 ```
 
 ### Dashboard
@@ -351,8 +379,14 @@ npm install
 npm run build
 
 cd ..
-./.venv/bin/python -m runtime.local_api_server --host 127.0.0.1 --port 8050
+python3 -m runtime.local_api_server --host 127.0.0.1 --port 8050
 ```
+
+### Dhan Cloud runners
+
+For Dhan-oriented one-file runners and stripped-down cloud-safe variants, start here:
+
+- [dhan_cloud/README.md](dhan_cloud/README.md)
 
 ## What To Read Next
 
