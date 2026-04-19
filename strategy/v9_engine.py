@@ -41,6 +41,7 @@ import pandas as pd
 import yfinance as yf
 
 from broker.groww_client import GROWW_MIN_HISTORY_START, GrowwSession, load_groww_universe
+from execution.india_costs import IndianDeliveryCostModel, resolve_cost_model
 from market_data.market_store import load_processed_matrix
 
 
@@ -500,13 +501,38 @@ def portfolio_returns(
     prices: pd.DataFrame,
     weights: pd.DataFrame,
     tx_cost: float,
+    cost_model: Optional[IndianDeliveryCostModel] = None,
+    base_value: float = 1_000_000.0,
 ) -> pd.Series:
     returns = prices.pct_change(fill_method=None).fillna(0.0)
-    lagged = weights.shift(1).ffill().fillna(0.0)
-    gross = (lagged * returns).sum(axis=1)
-    turnover = weights.fillna(0.0).diff().abs().sum(axis=1) / 2.0
-    net = gross - turnover * tx_cost
-    return net.iloc[1:]
+    aligned_weights = weights.reindex(index=prices.index, columns=ALL).ffill().fillna(0.0)
+    lagged = aligned_weights.shift(1).ffill().fillna(0.0)
+
+    if cost_model is None:
+        gross = (lagged * returns).sum(axis=1)
+        turnover = aligned_weights.diff().abs().sum(axis=1) / 2.0
+        net = gross - turnover * tx_cost
+        return net.iloc[1:]
+
+    equity = float(base_value)
+    net_returns: list[float] = []
+    net_index: list[pd.Timestamp] = []
+    for i, dt in enumerate(prices.index):
+        if i == 0:
+            continue
+        gross_return = float((lagged.loc[dt] * returns.loc[dt]).sum())
+        equity_after_market = equity * (1.0 + gross_return)
+        cost = cost_model.rebalance_cost(
+            lagged.loc[dt],
+            aligned_weights.loc[dt],
+            equity_after_market,
+        )
+        net_equity = max(equity_after_market - cost, 0.0)
+        net_returns.append(net_equity / equity - 1.0 if equity > 0.0 else 0.0)
+        net_index.append(dt)
+        equity = net_equity
+
+    return pd.Series(net_returns, index=pd.DatetimeIndex(net_index), dtype=float)
 
 
 def performance_metrics(
@@ -515,8 +541,10 @@ def performance_metrics(
     label: str,
     rf: float,
     tx_cost: float,
+    cost_model: Optional[IndianDeliveryCostModel] = None,
+    base_value: float = 1_000_000.0,
 ) -> Dict[str, object]:
-    daily = portfolio_returns(prices, weights, tx_cost=tx_cost)
+    daily = portfolio_returns(prices, weights, tx_cost=tx_cost, cost_model=cost_model, base_value=base_value)
     equity = (1.0 + daily).cumprod()
     years = len(daily) / 252
 
@@ -669,6 +697,8 @@ def walk_forward(
     rf: float,
     tx_cost: float,
     overlay: Optional[NarrativeOverlay] = None,
+    cost_model: Optional[IndianDeliveryCostModel] = None,
+    base_value: float = 1_000_000.0,
 ) -> Dict[str, object]:
     windows = []
     start = 0
@@ -715,7 +745,15 @@ def walk_forward(
                     asset_bias=overlay.asset_bias.loc[train_prices.index],
                 )
             train_weights = run_strategy(train_prices, config, overlay=train_overlay)
-            train_metrics = performance_metrics(train_prices, train_weights, config.name, rf=rf, tx_cost=tx_cost)
+            train_metrics = performance_metrics(
+                train_prices,
+                train_weights,
+                config.name,
+                rf=rf,
+                tx_cost=tx_cost,
+                cost_model=cost_model,
+                base_value=base_value,
+            )
             scored.append((strategy_score(train_metrics), config))
 
         _, best = max(scored, key=lambda item: item[0])
@@ -728,7 +766,15 @@ def walk_forward(
             )
         combined_weights = run_strategy(combined, best, overlay=combined_overlay)
         test_weights = combined_weights.loc[test_prices.index]
-        test_metrics = performance_metrics(test_prices, test_weights, best.name, rf=rf, tx_cost=tx_cost)
+        test_metrics = performance_metrics(
+            test_prices,
+            test_weights,
+            best.name,
+            rf=rf,
+            tx_cost=tx_cost,
+            cost_model=cost_model,
+            base_value=base_value,
+        )
 
         picked_rows.append(
             {
@@ -783,11 +829,21 @@ def benchmark_oos_metrics(
     dates: pd.DatetimeIndex,
     rf: float,
     tx_cost: float,
+    cost_model: Optional[IndianDeliveryCostModel] = None,
+    base_value: float = 1_000_000.0,
 ) -> List[Dict[str, object]]:
     subset = prices.loc[dates]
     names = ["EqWt Risky", "Nifty B&H", "Smallcap B&H", "60/40 Nifty/Cash"]
     return [
-        performance_metrics(subset, benchmark_weights(subset, name), name, rf=rf, tx_cost=tx_cost)
+        performance_metrics(
+            subset,
+            benchmark_weights(subset, name),
+            name,
+            rf=rf,
+            tx_cost=tx_cost,
+            cost_model=cost_model,
+            base_value=base_value,
+        )
         for name in names
     ]
 
@@ -831,6 +887,13 @@ def main() -> None:
     parser.add_argument("--end", default=DEFAULT_BACKTEST_END, help="Backtest end date.")
     parser.add_argument("--rf", type=float, default=DEFAULT_RF, help="Annual risk-free rate.")
     parser.add_argument("--tx-bps", type=float, default=30.0, help="Transaction cost in basis points per trade.")
+    parser.add_argument(
+        "--cost-model",
+        choices=["flat", "india_delivery"],
+        default="flat",
+        help="Use flat half-turnover bps or the official-style India delivery ETF/equity estimator.",
+    )
+    parser.add_argument("--base-value", type=float, default=1_000_000.0, help="Portfolio value used for fixed-cost backtest estimates.")
     parser.add_argument("--refresh-cache", action="store_true", help="Redownload price history instead of using cache.")
     parser.add_argument("--data-source", choices=["yfinance", "groww"], default="yfinance", help="Price source.")
     parser.add_argument(
@@ -845,6 +908,7 @@ def main() -> None:
     args = parser.parse_args()
 
     tx_cost = args.tx_bps / 10_000
+    cost_model = resolve_cost_model(args.cost_model)
 
     recommended = StrategyConfig(
         name="weekly_core85_tilt15",
@@ -896,6 +960,7 @@ def main() -> None:
     print("=" * 88)
     print(f"Backtest window: {args.start} -> {args.end}")
     print(f"Transaction cost: {tx_cost:.2%} per trade")
+    print(f"Cost model: {args.cost_model}")
     print(f"Risk-free rate: {args.rf:.2%}")
     print(f"Data source: {args.data_source}")
     print(f"Universe mode: {args.universe_mode}")
@@ -943,7 +1008,15 @@ def main() -> None:
     for config in candidates:
         weights = run_strategy(prices, config, overlay=overlay)
         full_sample_results.append(
-            performance_metrics(prices, weights, config.name, rf=args.rf, tx_cost=tx_cost)
+            performance_metrics(
+                prices,
+                weights,
+                config.name,
+                rf=args.rf,
+                tx_cost=tx_cost,
+                cost_model=cost_model,
+                base_value=args.base_value,
+            )
         )
 
     for name in ["EqWt Risky", "Nifty B&H", "Smallcap B&H", "60/40 Nifty/Cash"]:
@@ -954,6 +1027,8 @@ def main() -> None:
                 name,
                 rf=args.rf,
                 tx_cost=tx_cost,
+                cost_model=cost_model,
+                base_value=args.base_value,
             )
         )
 
@@ -964,11 +1039,26 @@ def main() -> None:
     )
     print_results_table("FULL SAMPLE", ordered_full_sample)
 
-    wfo = walk_forward(prices, candidates, rf=args.rf, tx_cost=tx_cost, overlay=overlay)
+    wfo = walk_forward(
+        prices,
+        candidates,
+        rf=args.rf,
+        tx_cost=tx_cost,
+        overlay=overlay,
+        cost_model=cost_model,
+        base_value=args.base_value,
+    )
     oos_metrics = wfo["metrics"]  # type: ignore[assignment]
     oos_dates = oos_metrics["returns"].index  # type: ignore[index]
     oos_benchmarks = (
-        benchmark_oos_metrics(prices, oos_dates, rf=args.rf, tx_cost=tx_cost)
+        benchmark_oos_metrics(
+            prices,
+            oos_dates,
+            rf=args.rf,
+            tx_cost=tx_cost,
+            cost_model=cost_model,
+            base_value=args.base_value,
+        )
         if len(oos_dates) > 0
         else []
     )
@@ -1058,6 +1148,9 @@ def main() -> None:
         "meta": {
             "data_source": args.data_source,
             "universe_mode": args.universe_mode,
+            "cost_model": args.cost_model,
+            "tx_cost": tx_cost,
+            "base_value": args.base_value,
             "price_start": prices.index[0].strftime("%Y-%m-%d"),
             "price_end": prices.index[-1].strftime("%Y-%m-%d"),
         },

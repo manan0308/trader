@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.trader.v22-iterative-search</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>exec '/Users/mananagarwal/miniconda3/bin/python' -u '/Users/mananagarwal/Desktop/2nd brain/plant to image/trader/research/alpha_v24_jpm_blend_iterative_search.py' --samples-per-cycle 20 --cycles 1 --top-k 20 --cost-model india_delivery --sleep-seconds 0</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/mananagarwal</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StartInterval</key>
+  <integer>300</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/mananagarwal/Library/Logs/trader/alpha_v24_jpm_blend_search.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/mananagarwal/Library/Logs/trader/alpha_v24_jpm_blend_search.err.log</string>
+</dict>
+</plist>
