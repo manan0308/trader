@@ -1,0 +1,77 @@
+[
+  {
+    "memorable_id": "steady_core_v9",
+    "human_name": "Steady Core",
+    "original_strategy_id": "v9_quant",
+    "category": "core",
+    "description": "Baseline diversified tactical multi-asset allocator.",
+    "source_files": [
+      "strategy/v9_engine.py"
+    ]
+  },
+  {
+    "memorable_id": "surge_rotation_blend",
+    "human_name": "Surge Rotation",
+    "original_strategy_id": "v18 70% v9 + 30% momentum",
+    "category": "blend",
+    "description": "70% v9 core plus 30% aggressive relative-strength rotation.",
+    "source_files": [
+      "research/alpha_v18_agile_rotation.py",
+      "research/strategy_matrix_20260419.py"
+    ]
+  },
+  {
+    "memorable_id": "pullback_guard_blend",
+    "human_name": "Pullback Guard",
+    "original_strategy_id": "v19 70% v9 + 30% pullback",
+    "category": "blend",
+    "description": "70% v9 core plus 30% trend-safe pullback buyer.",
+    "source_files": [
+      "research/alpha_v19_momentum_reversion.py",
+      "research/strategy_matrix_20260419.py"
+    ]
+  },
+  {
+    "memorable_id": "polaris_etf_blend",
+    "human_name": "Polaris ETF Blend",
+    "original_strategy_id": "Shiny ETF v20 fixed spec",
+    "category": "blend",
+    "description": "80% v9 plus 20% conservative pullback blend with trade-band smoothing.",
+    "source_files": [
+      "research/alpha_v20_deep_blend_search.py",
+      "research/alpha_v19_momentum_reversion.py",
+      "research/strategy_matrix_20260419.py"
+    ]
+  },
+  {
+    "memorable_id": "volume_pulse_weekly",
+    "human_name": "Volume Pulse Weekly",
+    "original_strategy_id": "v21_mom10_x_vr20_top2_weekly_s050_b020",
+    "category": "rotation",
+    "description": "Weekly slowed top-2 rotation on 10-day momentum times 20-day relative volume.",
+    "source_files": [
+      "research/alpha_v21_price_volume_rotation.py"
+    ]
+  },
+  {
+    "memorable_id": "flow_pulse_weekly",
+    "human_name": "Flow Pulse Weekly",
+    "original_strategy_id": "v21_obv5_top2_weekly_s050_b020",
+    "category": "rotation",
+    "description": "Weekly slowed top-2 rotation on 5-day OBV acceleration.",
+    "source_files": [
+      "research/alpha_v21_price_volume_rotation.py"
+    ]
+  },
+  {
+    "memorable_id": "atlas_jpm_blend",
+    "human_name": "Atlas JPM Blend",
+    "original_strategy_id": "v24_20v23_jpm_dtf3signal_top3_40v23_jpm_scorecard8_top3_40v9_b025_s100",
+    "category": "blend",
+    "description": "JPM-inspired blend of v9, scorecard momentum, and diversified trend following.",
+    "source_files": [
+      "research/alpha_v23_jpm_momentum_playbook.py",
+      "research/alpha_v24_jpm_blend_iterative_search.py"
+    ]
+  }
+]

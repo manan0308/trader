@@ -8,6 +8,7 @@ import pandas as pd
 
 from strategy.v9_engine import ALL
 from execution.rebalance_core import ExecutionConfig, plan_rebalance
+from execution.india_costs import DEFAULT_INDIAN_DELIVERY_COST_MODEL
 from runtime.display_labels import asset_label
 from runtime.store import (
     PAPER_BASE_HISTORY_PATH,
@@ -25,6 +26,7 @@ from runtime.store import (
 
 DEFAULT_PAPER_STARTING_CASH = 1_000_000.0
 DEFAULT_ESTIMATED_COST_BPS = 30.0
+DEFAULT_PAPER_COST_MODEL = "india_delivery"
 
 
 @dataclass(frozen=True)
@@ -91,6 +93,7 @@ def fill_pending_orders(
     price_map: Mapping[str, float],
     as_of: str,
     estimated_cost_bps: float = DEFAULT_ESTIMATED_COST_BPS,
+    cost_model: str = DEFAULT_PAPER_COST_MODEL,
 ) -> List[Dict[str, Any]]:
     positions = {asset: int(state["positions"].get(asset, 0)) for asset in ALL}
     cash = float(state.get("cash", 0.0))
@@ -112,7 +115,7 @@ def fill_pending_orders(
         side = str(order.get("side", "")).upper()
         fill_price = float(price_map.get(asset, order.get("reference_price", 0.0)))
         gross = quantity * fill_price
-        fees = gross * estimated_cost_bps / 10_000.0
+        fees = estimate_paper_fee(gross, side, estimated_cost_bps=estimated_cost_bps, cost_model=cost_model)
 
         if side == "BUY":
             affordable = gross + fees <= cash + 1e-9
@@ -126,7 +129,7 @@ def fill_pending_orders(
             if sell_qty <= 0:
                 continue
             gross = sell_qty * fill_price
-            fees = gross * estimated_cost_bps / 10_000.0
+            fees = estimate_paper_fee(gross, side, estimated_cost_bps=estimated_cost_bps, cost_model=cost_model)
             positions[asset] -= sell_qty
             cash += gross - fees
             quantity = sell_qty
@@ -150,6 +153,20 @@ def fill_pending_orders(
     state["pending_orders"] = remaining
     state["as_of"] = as_of
     return filled
+
+
+def estimate_paper_fee(
+    gross: float,
+    side: str,
+    *,
+    estimated_cost_bps: float = DEFAULT_ESTIMATED_COST_BPS,
+    cost_model: str = DEFAULT_PAPER_COST_MODEL,
+) -> float:
+    if cost_model == "india_delivery":
+        return DEFAULT_INDIAN_DELIVERY_COST_MODEL.order_cost(gross, side).total
+    if cost_model == "flat":
+        return float(gross) * estimated_cost_bps / 10_000.0
+    raise ValueError(f"Unsupported paper cost model: {cost_model}")
 
 
 def queue_pending_orders(state: Dict[str, Any], orders: Iterable[Mapping[str, Any]], created_at: str) -> None:

@@ -8,6 +8,7 @@ import pandas as pd
 
 from strategy.v9_engine import ALL
 from broker.groww_client import DEFAULT_GROWW_UNIVERSE, GrowwInstrument
+from execution.india_costs import DEFAULT_INDIAN_DELIVERY_COST_MODEL
 from runtime.display_labels import asset_label
 
 
@@ -19,6 +20,7 @@ class ExecutionConfig:
     reserve_cash_weight: float = 0.0025
     price_buffer_bps: float = 25.0
     estimated_cost_bps: float = 30.0
+    cost_model: str = "india_delivery"
     default_lot_size: int = 1
     buy_priority: str = "largest_delta"
     use_cash_proxy: bool = True
@@ -175,7 +177,7 @@ def _build_order(
     buffer = config.price_buffer_bps / 10_000.0
     order_price = reference_price * (1.0 + buffer) if side == "BUY" else reference_price * (1.0 - buffer)
     delta_value = abs(quantity * reference_price)
-    estimated_cost = delta_value * config.estimated_cost_bps / 10_000.0
+    estimated_cost = _estimated_order_cost(delta_value, side, config)
     notes = "LIQUIDBEES cash-proxy" if asset == "CASH" else "risky-etf"
     return OrderIntent(
         asset=asset,
@@ -191,6 +193,40 @@ def _build_order(
         estimated_cost=float(estimated_cost),
         notes=notes,
     )
+
+
+def _estimated_order_cost(notional: float, side: str, config: ExecutionConfig) -> float:
+    if config.cost_model == "india_delivery":
+        return DEFAULT_INDIAN_DELIVERY_COST_MODEL.order_cost(notional, side).total
+    if config.cost_model == "flat":
+        return float(notional) * config.estimated_cost_bps / 10_000.0
+    raise ValueError(f"Unsupported execution cost model: {config.cost_model}")
+
+
+def _max_affordable_buy_quantity(
+    max_quantity: int,
+    price: float,
+    available_cash: float,
+    lot_size: int,
+    config: ExecutionConfig,
+) -> int:
+    lot_size = max(int(lot_size), 1)
+    max_units = max(int(max_quantity) // lot_size, 0)
+    if max_units <= 0:
+        return 0
+
+    low = 0
+    high = max_units
+    while low < high:
+        mid = (low + high + 1) // 2
+        quantity = mid * lot_size
+        gross = quantity * float(price)
+        total_cost = gross + _estimated_order_cost(gross, "BUY", config)
+        if total_cost <= available_cash + 1e-9:
+            low = mid
+        else:
+            high = mid - 1
+    return low * lot_size
 
 
 def plan_rebalance(
@@ -259,7 +295,7 @@ def plan_rebalance(
         if quantity <= 0:
             continue
         gross_proceeds = quantity * float(px[asset])
-        fees = gross_proceeds * cfg.estimated_cost_bps / 10_000.0
+        fees = _estimated_order_cost(gross_proceeds, "SELL", cfg)
         working_qty[asset] -= quantity
         working_cash += gross_proceeds - fees
         turnover_value += gross_proceeds
@@ -285,15 +321,20 @@ def plan_rebalance(
     for asset, delta_qty, notional in buy_assets:
         if notional < cfg.min_order_value and float(delta_weights[asset]) < cfg.min_trade_weight:
             continue
-        cost_multiplier = 1.0 + cfg.estimated_cost_bps / 10_000.0
         quantity = min(
             int(delta_qty),
-            _round_down(working_cash / (float(px[asset]) * cost_multiplier), int(lot_sizes[asset])),
+            _max_affordable_buy_quantity(
+                max_quantity=int(delta_qty),
+                price=float(px[asset]),
+                available_cash=working_cash,
+                lot_size=int(lot_sizes[asset]),
+                config=cfg,
+            ),
         )
         if quantity <= 0:
             continue
         gross_spend = quantity * float(px[asset])
-        fees = gross_spend * cfg.estimated_cost_bps / 10_000.0
+        fees = _estimated_order_cost(gross_spend, "BUY", cfg)
         working_qty[asset] += quantity
         working_cash -= gross_spend + fees
         turnover_value += gross_spend
